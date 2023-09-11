@@ -1,2 +1,3 @@
-# quasar
+# Quasar
+
 A Soroban indexer
