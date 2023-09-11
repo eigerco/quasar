@@ -1,4 +1,3 @@
-use std::env;
 
 use clap::{command, Parser};
 use config::{Config, Environment, File};
