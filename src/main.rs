@@ -15,6 +15,7 @@
 
 use clap::{command, Parser};
 use config::{Config, Environment, File};
+use diesel::{Connection, PgConnection};
 use log::{error, info, LevelFilter};
 use log4rs::{
     append::console::ConsoleAppender,
@@ -83,6 +84,10 @@ fn main() {
 fn start(configuration: Configuration) {
     if let Some(database_url) = configuration.database_url {
         info!("Database URL: {}", database_url);
+
+        PgConnection::establish(&database_url)
+            .unwrap_or_else(|_| panic!("Error connecting to {}", database_url));
+        info!("Database connected");
     } else {
         error!("No database URL configured, exiting...");
         std::process::exit(1);

@@ -1,0 +1,3 @@
+CREATE TABLE ledgers (
+  id SERIAL PRIMARY KEY
+)
