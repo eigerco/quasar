@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 clap = { version = "4.4.2", features = ["derive"] }
 config = "0.13.3"
+diesel = { version = "2.1.1", features = ["postgres"] }
 log = "0.4.20"
 log4rs = "1.2.0"
 serde = { version = "1.0.188", features = ["derive"] }
