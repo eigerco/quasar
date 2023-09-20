@@ -31,12 +31,12 @@ mod configuration;
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// Database URL to use as a backend
-    #[arg(long)]
+    #[arg(short, long)]
     database_url: Option<String>,
 
-    /// Turn debugging information on
-    #[arg(short, long, action = clap::ArgAction::Count)]
-    debug: u8,
+    /// Stellar node URL to ingest data from
+    #[arg(short, long)]
+    stellar_node_database_url: Option<String>,
 }
 
 fn setup_logger() {
@@ -62,6 +62,12 @@ fn setup_configuration(args: Args) -> Configuration {
             .expect("Failed to set database_url");
     }
 
+    if let Some(stellar_node_database_url) = args.stellar_node_database_url {
+        config_builder = config_builder
+            .set_override("stellar_node_database_url", stellar_node_database_url)
+            .expect("Failed to set stellar_node_database_url");
+    }
+
     let configuration = config_builder
         .build()
         .expect("Failed to build configuration");
@@ -82,14 +88,47 @@ fn main() {
 }
 
 fn start(configuration: Configuration) {
-    if let Some(database_url) = configuration.database_url {
-        info!("Database URL: {}", database_url);
+    let _database_connection = setup_database_connection(&configuration);
+    let _node_database_connection = setup_stellar_node_database_connection(&configuration);
+}
 
-        PgConnection::establish(&database_url)
-            .unwrap_or_else(|_| panic!("Error connecting to {}", database_url));
-        info!("Database connected");
+fn setup_database_connection(configuration: &Configuration) -> PgConnection {
+    if let Some(database_url) = &configuration.database_url {
+        info!("Connecting the backend database: {}", database_url);
+
+        setup_connection(database_url)
     } else {
-        error!("No database URL configured, exiting...");
+        error!("Database URL not set. Use config/ or --database-url");
         std::process::exit(1);
+    }
+}
+
+fn setup_stellar_node_database_connection(configuration: &Configuration) -> PgConnection {
+    if let Some(node_database_url) = &configuration.stellar_node_database_url {
+        info!(
+            "Connecting the Stellar node database: {}",
+            node_database_url
+        );
+
+        setup_connection(node_database_url)
+    } else {
+        error!("Node database URL not set. Use config/, -s or --stellar-node-database-url");
+        std::process::exit(1);
+    }
+}
+
+fn setup_connection(database_url: &String) -> PgConnection {
+    let connection_result = PgConnection::establish(database_url);
+
+    match connection_result {
+        Ok(connection) => {
+            info!("Database connected");
+
+            connection
+        }
+        Err(error) => {
+            error!("Error connecting to {}, {}", database_url, error);
+            std::process::exit(1);
+        }
     }
 }
