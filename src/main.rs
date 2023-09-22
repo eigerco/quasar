@@ -15,17 +15,21 @@
 
 use clap::{command, Parser};
 use config::{Config, Environment, File};
-use diesel::{Connection, PgConnection};
 use log::{error, info, LevelFilter};
 use log4rs::{
     append::console::ConsoleAppender,
     config::Config as Log4rsConfig,
     config::{Appender, Root},
 };
+use sea_orm::{Database, DatabaseConnection, EntityTrait};
+use stellar_node_models::ledgerheaders;
+use stellar_xdr::{LedgerHeader, ReadXdr};
 
 use crate::configuration::Configuration;
 
 mod configuration;
+mod quasar_models;
+mod stellar_node_models;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -77,48 +81,64 @@ fn setup_configuration(args: Args) -> Configuration {
     configuration
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let args = Args::parse();
 
     let configuration = setup_configuration(args);
 
     setup_logger();
 
-    start(configuration);
+    start(configuration).await;
 }
 
-fn start(configuration: Configuration) {
-    let _database_connection = setup_database_connection(&configuration);
-    let _node_database_connection = setup_stellar_node_database_connection(&configuration);
+async fn start(configuration: Configuration) {
+    let _database_connection = setup_quasar_database_connection(&configuration).await;
+    let node_database = setup_stellar_node_database_connection(&configuration).await;
+
+    let result = ledgerheaders::Entity::find()
+        .one(&node_database)
+        .await
+        .unwrap();
+
+    if let Some(result) = result {
+        info!("{}", &result.data);
+        let ledger_header = LedgerHeader::from_xdr_base64(result.data).unwrap();
+        info!("Ledger header: {:?}", ledger_header);
+    } else {
+        error!("Ledger header not found");
+    }
 }
 
-fn setup_database_connection(configuration: &Configuration) -> PgConnection {
-    if let Some(database_url) = &configuration.database_url {
+async fn setup_quasar_database_connection(configuration: &Configuration) -> DatabaseConnection {
+    if let Some(database_url) = &configuration.quasar_database_url {
         info!("Connecting the backend database: {}", database_url);
 
-        setup_connection(database_url)
+        setup_connection(database_url).await
     } else {
         error!("Database URL not set. Use config/ or --database-url");
         std::process::exit(1);
     }
 }
 
-fn setup_stellar_node_database_connection(configuration: &Configuration) -> PgConnection {
+async fn setup_stellar_node_database_connection(
+    configuration: &Configuration,
+) -> DatabaseConnection {
     if let Some(node_database_url) = &configuration.stellar_node_database_url {
         info!(
             "Connecting the Stellar node database: {}",
             node_database_url
         );
 
-        setup_connection(node_database_url)
+        setup_connection(node_database_url).await
     } else {
         error!("Node database URL not set. Use config/, -s or --stellar-node-database-url");
         std::process::exit(1);
     }
 }
 
-fn setup_connection(database_url: &String) -> PgConnection {
-    let connection_result = PgConnection::establish(database_url);
+async fn setup_connection(database_url: &String) -> DatabaseConnection {
+    let connection_result = Database::connect(database_url).await;
 
     match connection_result {
         Ok(connection) => {

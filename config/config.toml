@@ -1,1 +1,1 @@
-database_url = "postgres://quasar:quasar@localhost:5432/quasar_development"
+quasar_database_url = "postgres://quasar:quasar@localhost:5432/quasar_development"
