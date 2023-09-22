@@ -1,7 +1,8 @@
 { pkgs, ... }:
 
 {
-  env.DATABASE_URL = "postgres://quasar:quasar@localhost:5432/quasar_development";
+  # env.DATABASE_URL = "postgres://quasar:quasar@localhost:5432/quasar_development";
+  env.DATABASE_URL = "postgres://stellar:stellar@localhost:8001/core";
 
   languages.rust.enable = true;
 
