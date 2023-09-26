@@ -1,16 +1,25 @@
 [package]
-name = "quasar-indexer"
+name = "quasar_indexer"
 version = "0.1.0"
 edition = "2021"
+
+[workspace]
+members = [".", "quasar_entities", "quasar_migrations", "stellar_node_entities"]
+
+[workspace.dependencies]
+sea-orm = "0.12.2"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+quasar_entities = { path = "quasar_entities" }
+quasar_migrations = { path = "quasar_migrations" }
+stellar_node_entities = { path = "stellar_node_entities" }
 clap = { version = "4.4.2", features = ["derive"] }
 config = "0.13.3"
 log = "0.4.20"
 log4rs = "1.2.0"
-sea-orm = { version = "0.12.2", features = ["sqlx-postgres", "runtime-tokio-rustls"] }
+sea-orm = { workspace = true, features = ["sqlx-postgres", "runtime-tokio-rustls"] }
 serde = { version = "1.0.188", features = ["derive"] }
 stellar-xdr = { version = "0.0.17", features = ["base64"] }
 tokio = { version = "1.32.0", features = ["full"] }

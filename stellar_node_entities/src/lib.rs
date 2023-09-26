@@ -16,7 +16,6 @@ pub mod peers;
 pub mod publishqueue;
 pub mod pubsub;
 pub mod quoruminfo;
-pub mod scphistory;
 pub mod scpquorums;
 pub mod storestate;
 pub mod trustlines;

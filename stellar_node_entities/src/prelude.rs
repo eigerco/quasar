@@ -14,7 +14,6 @@ pub use super::peers::Entity as Peers;
 pub use super::publishqueue::Entity as Publishqueue;
 pub use super::pubsub::Entity as Pubsub;
 pub use super::quoruminfo::Entity as Quoruminfo;
-// pub use super::scphistory::Entity as Scphistory;
 pub use super::scpquorums::Entity as Scpquorums;
 pub use super::storestate::Entity as Storestate;
 pub use super::trustlines::Entity as Trustlines;

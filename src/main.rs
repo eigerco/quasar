@@ -21,15 +21,14 @@ use log4rs::{
     config::Config as Log4rsConfig,
     config::{Appender, Root},
 };
+use migration::{Migrator, MigratorTrait};
 use sea_orm::{Database, DatabaseConnection, EntityTrait};
-use stellar_node_models::ledgerheaders;
+use stellar_node_entities::ledgerheaders;
 use stellar_xdr::{LedgerHeader, ReadXdr};
 
 use crate::configuration::Configuration;
 
 mod configuration;
-mod quasar_models;
-mod stellar_node_models;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -93,7 +92,11 @@ async fn main() {
 }
 
 async fn start(configuration: Configuration) {
-    let _database_connection = setup_quasar_database_connection(&configuration).await;
+    let quasar_database = setup_quasar_database_connection(&configuration).await;
+    Migrator::up(&quasar_database, None)
+        .await
+        .expect("Migration failed");
+
     let node_database = setup_stellar_node_database_connection(&configuration).await;
 
     let result = ledgerheaders::Entity::find()
