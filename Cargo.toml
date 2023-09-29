@@ -21,5 +21,6 @@ log = "0.4.20"
 log4rs = "1.2.0"
 sea-orm = { workspace = true, features = ["sqlx-postgres", "runtime-tokio-rustls"] }
 serde = { version = "1.0.188", features = ["derive"] }
-stellar-xdr = { version = "0.0.17", features = ["base64"] }
 tokio = { version = "1.32.0", features = ["full"] }
+stellar-xdr = { version = "0.0.17", features = ["base64"] }
+thiserror = "1.0"
