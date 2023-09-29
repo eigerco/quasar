@@ -15,6 +15,7 @@
 
 use clap::{command, Parser};
 use config::{Config, Environment, File};
+use ingestion::ingest;
 use log::{error, info, LevelFilter};
 use log4rs::{
     append::console::ConsoleAppender,
@@ -22,13 +23,12 @@ use log4rs::{
     config::{Appender, Root},
 };
 use migration::{Migrator, MigratorTrait};
-use sea_orm::{Database, DatabaseConnection, EntityTrait};
-use stellar_node_entities::ledgerheaders;
-use stellar_xdr::{LedgerHeader, ReadXdr};
+use sea_orm::{Database, DatabaseConnection};
 
 use crate::configuration::Configuration;
 
 mod configuration;
+mod ingestion;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -99,18 +99,7 @@ async fn start(configuration: Configuration) {
 
     let node_database = setup_stellar_node_database_connection(&configuration).await;
 
-    let result = ledgerheaders::Entity::find()
-        .one(&node_database)
-        .await
-        .unwrap();
-
-    if let Some(result) = result {
-        info!("{}", &result.data);
-        let ledger_header = LedgerHeader::from_xdr_base64(result.data).unwrap();
-        info!("Ledger header: {:?}", ledger_header);
-    } else {
-        error!("Ledger header not found");
-    }
+    ingest(node_database, quasar_database, &configuration.ingestion).await;
 }
 
 async fn setup_quasar_database_connection(configuration: &Configuration) -> DatabaseConnection {

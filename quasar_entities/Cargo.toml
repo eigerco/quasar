@@ -5,3 +5,5 @@ edition = "2021"
 
 [dependencies]
 sea-orm = { workspace = true }
+stellar_node_entities = { path = "../stellar_node_entities" }
+stellar-xdr = { version = "0.0.17", features = ["base64"] }

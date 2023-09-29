@@ -1,1 +1,4 @@
 quasar_database_url = "postgres://quasar:quasar@localhost:5432/quasar_development"
+
+[ingestion]
+polling_interval = 5
