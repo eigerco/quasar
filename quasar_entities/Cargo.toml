@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+async-graphql = { workspace = true, features = ["decimal", "chrono", "dataloader"] }
 sea-orm = { workspace = true }
 stellar_node_entities = { path = "../stellar_node_entities" }
 stellar-xdr = { version = "0.0.17", features = ["base64"] }
