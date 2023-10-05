@@ -24,9 +24,7 @@ pub async fn serve(api: &Api, database: DatabaseConnection) {
         get(graphql_playground).post_service(GraphQL::new(schema)),
     );
 
-    let socket_addr = format!("{}:{}", api.host, api.port)
-        .parse()
-        .expect("Failed to parse socket address");
+    let socket_addr = (api.host, api.port).into();
 
     tokio::spawn(async move {
         axum::Server::bind(&socket_addr)

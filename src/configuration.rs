@@ -1,3 +1,5 @@
+use std::net::Ipv4Addr;
+
 use config::{Config, Environment, File};
 use serde::Deserialize;
 
@@ -8,16 +10,16 @@ pub struct Ingestion {
     pub polling_interval: u64,
 }
 
-#[derive(Debug, Default, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Deserialize, PartialEq, Eq)]
 pub struct Api {
-    pub host: String,
+    pub host: Ipv4Addr,
     pub port: u16,
 
     pub depth_limit: usize,
     pub complexity_limit: usize,
 }
 
-#[derive(Debug, Default, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Deserialize, PartialEq, Eq)]
 pub struct Configuration {
     pub quasar_database_url: Option<String>,
     pub stellar_node_database_url: Option<String>,
