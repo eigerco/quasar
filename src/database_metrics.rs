@@ -16,12 +16,7 @@ pub(super) fn start_database_metrics(
 }
 
 async fn database_metrics(database: DatabaseConnection, registry: Registry, interval: u64) {
-    let mut ledger_gauge =
-        IntGauge::new("all_ledgers", "Number of ledgers in the database").unwrap();
-    registry
-        .register(Box::new(ledger_gauge.clone()))
-        .expect("Failed to register counter");
-
+    let mut ledger_gauge = setup_metrics(registry);
     let mut interval = time::interval(Duration::from_secs(interval));
 
     loop {
@@ -29,6 +24,16 @@ async fn database_metrics(database: DatabaseConnection, registry: Registry, inte
 
         count_entities(&database, &mut ledger_gauge).await;
     }
+}
+
+fn setup_metrics(
+    registry: Registry,
+) -> prometheus::core::GenericGauge<prometheus::core::AtomicI64> {
+    let ledger_gauge = IntGauge::new("all_ledgers", "Number of ledgers in the database").unwrap();
+    registry
+        .register(Box::new(ledger_gauge.clone()))
+        .expect("Failed to register counter");
+    ledger_gauge
 }
 
 async fn count_entities(database: &DatabaseConnection, ledger_gauge: &mut IntGauge) {

@@ -14,9 +14,10 @@ async-graphql-axum = "6.0.7"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-async-graphql = { workspace = true, features = ["playground"] }
 async-graphql-axum = { workspace = true }
+async-graphql = { workspace = true, features = ["playground"] }
 axum = "0.6"
+axum-prometheus = "0.4.0"
 clap = { version = "4.4.2", features = ["derive"] }
 config = "0.13.3"
 log = "0.4.20"
@@ -30,4 +31,3 @@ stellar_node_entities = { path = "stellar_node_entities" }
 stellar-xdr = { version = "0.0.17", features = ["base64"] }
 thiserror = "1.0"
 tokio = { version = "1.32.0", features = ["full"] }
-axum-prometheus = "0.4.0"
