@@ -1,4 +1,5 @@
 use log::info;
+use prometheus::IntCounter;
 use quasar_entities::ledger;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder,
@@ -11,12 +12,15 @@ pub async fn ingest_ledgers(
     node_database: &DatabaseConnection,
     quasar_database: &DatabaseConnection,
     mut last_ingested_ledger_sequence: Option<i32>,
+    counter: &IntCounter,
 ) -> Result<(), IngestionError> {
     while let Some(next_ledger) =
         next_ledger_to_ingest(node_database, last_ingested_ledger_sequence).await?
     {
         let ingested_sequence = ingest_ledger(next_ledger, quasar_database).await?;
         last_ingested_ledger_sequence = Some(ingested_sequence);
+
+        counter.inc();
     }
 
     Ok(())

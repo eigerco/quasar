@@ -1,4 +1,5 @@
 use log::{debug, error};
+use prometheus::{IntCounter, Registry};
 use quasar_entities::{ledger, prelude::Ledger};
 use sea_orm::{DatabaseConnection, DbErr, EntityTrait, QueryOrder};
 use stellar_node_entities::ledgerheaders;
@@ -65,11 +66,25 @@ async fn last_stellar_ledger_sequence(
     Ok(last_stellar_ledger_sequence)
 }
 
+fn setup_metrics(
+    metrics: Registry,
+) -> prometheus::core::GenericCounter<prometheus::core::AtomicU64> {
+    let ingested_ledgers_counter =
+        IntCounter::new("ingested_ledgers", "Number of ingested ledgers").unwrap();
+    metrics
+        .register(Box::new(ingested_ledgers_counter.clone()))
+        .expect("Failed to register counter");
+    ingested_ledgers_counter
+}
+
 pub async fn ingest(
     node_database: DatabaseConnection,
     quasar_database: DatabaseConnection,
     ingestion: &Ingestion,
+    metrics: Registry,
 ) {
+    let ingested_ledgers = setup_metrics(metrics);
+
     loop {
         sleep(ingestion).await;
 
@@ -84,6 +99,7 @@ pub async fn ingest(
                     &node_database,
                     &quasar_database,
                     last_ingested_ledger_sequence,
+                    &ingested_ledgers,
                 )
                 .await;
 

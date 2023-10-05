@@ -8,3 +8,6 @@ host = "127.0.0.1"
 port = 8080
 depth_limit = 3
 complexity_limit = 16
+
+[metrics]
+database_polling_interval = 5

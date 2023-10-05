@@ -5,10 +5,12 @@ use axum::{
     routing::get,
     Router,
 };
+use axum_prometheus::PrometheusMetricLayer;
 use log::info;
+use prometheus::Registry;
 use sea_orm::DatabaseConnection;
 
-use crate::{configuration::Api, schema::build_schema};
+use crate::{configuration::Api, metrics::collect_metrics, schema::build_schema};
 
 pub(crate) async fn graphql_playground() -> impl IntoResponse {
     Html(playground_source(
@@ -16,13 +18,21 @@ pub(crate) async fn graphql_playground() -> impl IntoResponse {
     ))
 }
 
-pub async fn serve(api: &Api, database: DatabaseConnection) {
+pub async fn serve(api: &Api, database: DatabaseConnection, metrics: Registry) {
     let schema = build_schema(api.depth_limit, api.complexity_limit, database);
 
-    let app = Router::new().route(
-        "/",
-        get(graphql_playground).post_service(GraphQL::new(schema)),
-    );
+    let (prometheus_layer, metric_handle) = PrometheusMetricLayer::pair();
+
+    let app = Router::new()
+        .route(
+            "/",
+            get(graphql_playground).post_service(GraphQL::new(schema)),
+        )
+        .route(
+            "/metrics",
+            get(|| async move { collect_metrics(metrics, metric_handle) }),
+        )
+        .layer(prometheus_layer);
 
     let socket_addr = (api.host, api.port).into();
 

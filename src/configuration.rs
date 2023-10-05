@@ -11,6 +11,11 @@ pub struct Ingestion {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
+pub struct Metrics {
+    pub database_polling_interval: u64,
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq)]
 pub struct Api {
     pub host: Ipv4Addr,
     pub port: u16,
@@ -26,6 +31,7 @@ pub struct Configuration {
 
     pub ingestion: Ingestion,
     pub api: Api,
+    pub metrics: Metrics,
 }
 
 pub(super) fn setup_configuration(args: Args) -> Configuration {
