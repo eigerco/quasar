@@ -14,13 +14,15 @@ async-graphql-axum = "6.0.7"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-async-graphql = { workspace = true, features = ["playground"] }
 async-graphql-axum = { workspace = true }
+async-graphql = { workspace = true, features = ["playground"] }
 axum = "0.6"
+axum-prometheus = "0.4.0"
 clap = { version = "4.4.2", features = ["derive"] }
 config = "0.13.3"
 log = "0.4.20"
 log4rs = "1.2.0"
+prometheus = { version = "0.13.3", features = ["process"] }
 quasar_entities = { path = "quasar_entities" }
 quasar_migrations = { path = "quasar_migrations" }
 sea-orm = { workspace = true, features = ["sqlx-postgres", "runtime-tokio-rustls"] }
