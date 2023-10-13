@@ -6,7 +6,7 @@ use sea_orm::{
 };
 use stellar_node_entities::{ledgerheaders, prelude::Ledgerheaders};
 
-use crate::ingestion::IngestionError;
+use crate::ingestion::{accounts::ingest_accounts, IngestionError};
 
 pub async fn ingest_ledgers(
     node_database: &DatabaseConnection,
@@ -17,7 +17,7 @@ pub async fn ingest_ledgers(
     while let Some(next_ledger) =
         next_ledger_to_ingest(node_database, last_ingested_ledger_sequence).await?
     {
-        let ingested_sequence = ingest_ledger(next_ledger, quasar_database).await?;
+        let ingested_sequence = ingest_ledger(next_ledger, quasar_database, node_database).await?;
         last_ingested_ledger_sequence = Some(ingested_sequence);
 
         counter.inc();
@@ -28,7 +28,8 @@ pub async fn ingest_ledgers(
 
 async fn ingest_ledger(
     ledger: ledgerheaders::Model,
-    db: &DatabaseConnection,
+    quasar_database: &DatabaseConnection,
+    node_database: &DatabaseConnection,
 ) -> Result<i32, IngestionError> {
     let sequence = ledger
         .ledgerseq
@@ -36,8 +37,9 @@ async fn ingest_ledger(
     info!("Ingesting ledger {}", sequence);
 
     let ledger: ledger::ActiveModel = ledger::ActiveModel::try_from(ledger)?;
+    ledger.insert(quasar_database).await?;
 
-    ledger.insert(db).await?;
+    ingest_accounts(node_database, quasar_database, sequence).await?;
 
     Ok(sequence)
 }

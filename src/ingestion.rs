@@ -1,12 +1,13 @@
 use log::{debug, error};
 use prometheus::{IntCounter, Registry};
-use quasar_entities::{ledger, prelude::Ledger};
+use quasar_entities::{account::AccountError, ledger, prelude::Ledger};
 use sea_orm::{DatabaseConnection, DbErr, EntityTrait, QueryOrder};
 use stellar_node_entities::ledgerheaders;
 use thiserror::Error;
 
 use crate::{configuration::Ingestion, ingestion::ledgers::ingest_ledgers};
 
+mod accounts;
 mod ledgers;
 
 #[derive(Error, Debug)]
@@ -17,6 +18,8 @@ pub enum IngestionError {
     MissingLedgerSequence,
     #[error("XDR decoding error: {0}")]
     XdrError(#[from] stellar_xdr::Error),
+    #[error("Account error: {0}")]
+    AccountError(#[from] AccountError),
 }
 
 enum IngestionNeeded {
