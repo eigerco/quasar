@@ -2,7 +2,8 @@ use log::info;
 use prometheus::IntCounter;
 use quasar_entities::contract;
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder,
+    prelude::DateTime, ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait,
+    QueryFilter, QueryOrder,
 };
 use stellar_node_entities::{contractdata, prelude::Contractdata};
 
@@ -11,14 +12,12 @@ use crate::ingestion::IngestionError;
 pub async fn ingest_contracts(
     node_database: &DatabaseConnection,
     quasar_database: &DatabaseConnection,
-    mut last_ingested_contract_sequence: Option<i32>,
+    mut last_ingested: Option<DateTime>,
     counter: &IntCounter,
 ) -> Result<(), IngestionError> {
-    while let Some(next_contract) =
-        next_contract_to_ingest(node_database, last_ingested_contract_sequence).await?
-    {
+    while let Some(next_contract) = next_contract_to_ingest(node_database, last_ingested).await? {
         let ingested_sequence = ingest_contract(next_contract, quasar_database).await?;
-        last_ingested_contract_sequence = Some(ingested_sequence);
+        // last_ingested = Some(ingested_sequence);
 
         counter.inc();
     }
@@ -29,27 +28,21 @@ pub async fn ingest_contracts(
 async fn ingest_contract(
     contract: contractdata::Model,
     db: &DatabaseConnection,
-) -> Result<i32, IngestionError> {
-    let sequence = contract
-        .contractid
-        .parse()
-        .map_err(|_| IngestionError::MissingLedgerSequence)?;
-    info!("Ingesting contract {}", sequence);
-
-    let contract: contract::ActiveModel = contract::ActiveModel::try_from(contract)?;
-
+) -> Result<(), IngestionError> {
+    let sequence = contract.lastmodified;
+    info!("Ingesting contract since {}", sequence);
+    let contract: contract::ActiveModel = contract::ActiveModel::try_from(contract).unwrap();
     contract.insert(db).await?;
-
-    Ok(sequence)
+    Ok(())
 }
 
 async fn next_contract_to_ingest(
     node_database: &DatabaseConnection,
-    last_ingested_contract_sequence: Option<i32>,
+    last_ingested: Option<DateTime>,
 ) -> Result<Option<contractdata::Model>, IngestionError> {
     let next_contract = Contractdata::find();
 
-    let next_contract = match last_ingested_contract_sequence {
+    let next_contract = match last_ingested {
         Some(last_ingested_contract_sequence) => next_contract
             .filter(contractdata::Column::Lastmodified.gt(last_ingested_contract_sequence)),
 

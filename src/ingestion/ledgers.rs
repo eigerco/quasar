@@ -35,7 +35,7 @@ async fn ingest_ledger(
         .ok_or(IngestionError::MissingLedgerSequence)?;
     info!("Ingesting ledger {}", sequence);
 
-    let ledger: ledger::ActiveModel = ledger::ActiveModel::try_from(ledger)?;
+    let ledger: ledger::ActiveModel = ledger::ActiveModel::try_from(ledger).unwrap();
 
     ledger.insert(db).await?;
 

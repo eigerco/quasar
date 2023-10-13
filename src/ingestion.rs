@@ -7,6 +7,8 @@ use thiserror::Error;
 
 use crate::{configuration::Ingestion, ingestion::ledgers::ingest_ledgers};
 
+use self::contracts::ingest_contracts;
+
 mod ledgers;
 mod contracts;
 
@@ -17,7 +19,7 @@ pub enum IngestionError {
     #[error("Missing ledger sequence")]
     MissingLedgerSequence,
     #[error("XDR decoding error: {0}")]
-    XdrError(#[from] stellar_xdr::Error),
+    XdrError(#[from] stellar_xdr::curr::Error),
 }
 
 enum IngestionNeeded {
@@ -78,17 +80,29 @@ fn setup_metrics(
     ingested_ledgers_counter
 }
 
+fn setup_contract_metrics(
+    metrics: Registry,
+) -> prometheus::core::GenericCounter<prometheus::core::AtomicU64> {
+    let ingested_contract_counter =
+        IntCounter::new("ingested_contracts", "Number of ingested contracts").unwrap();
+    metrics
+        .register(Box::new(ingested_contract_counter.clone()))
+        .expect("Failed to register counter");
+    ingested_contract_counter
+}
+
 pub async fn ingest(
     node_database: DatabaseConnection,
     quasar_database: DatabaseConnection,
     ingestion: &Ingestion,
     metrics: Registry,
 ) {
-    let ingested_ledgers = setup_metrics(metrics);
+    let ingested_ledgers = setup_metrics(metrics.clone());
+    let ingested_conracts = setup_contract_metrics(metrics);
 
     loop {
         sleep(ingestion).await;
-
+        // Handle ledgers
         let ingestion_needed = new_ledgers_available(&node_database, &quasar_database).await;
 
         match ingestion_needed {
@@ -113,6 +127,7 @@ pub async fn ingest(
                 error!("Error while checking for new ledgers: {}", error);
             }
         }
+        ingest_contracts(&node_database, &quasar_database, None, &ingested_conracts).await.unwrap();
     }
 }
 
