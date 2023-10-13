@@ -1,5 +1,6 @@
 use async_graphql::{Context, EmptyMutation, EmptySubscription, Object, Result, Schema};
-use quasar_entities::ledger;
+use log::info;
+use quasar_entities::{contract, ledger};
 use sea_orm::{DatabaseConnection, EntityTrait};
 
 pub(crate) type ServiceSchema = Schema<QueryRoot, EmptyMutation, EmptySubscription>;
@@ -16,6 +17,11 @@ impl QueryRoot {
         let database = ctx.data::<DatabaseConnection>()?;
         Ok(ledger::Entity::find().all(database).await?)
     }
+
+    async fn contracts(&self, ctx: &Context<'_>) -> Result<Vec<contract::Model>> {
+        let database = ctx.data::<DatabaseConnection>()?;
+        Ok(contract::Entity::find().all(database).await?)
+    }
 }
 
 pub(crate) fn build_schema(
@@ -25,8 +31,12 @@ pub(crate) fn build_schema(
 ) -> ServiceSchema {
     let mut schema = Schema::build(QueryRoot, EmptyMutation, EmptySubscription).data(database);
 
-    schema = schema.limit_depth(depth_limit);
-    schema = schema.limit_complexity(complexity_limit);
+    if cfg!(debug_assertions) {
+        info!("Debugging enabled, no limits on query");
+    } else {
+        schema = schema.limit_depth(depth_limit);
+        schema = schema.limit_complexity(complexity_limit);
+    }
 
     schema.finish()
 }

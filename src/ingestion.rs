@@ -8,6 +8,7 @@ use thiserror::Error;
 use crate::{configuration::Ingestion, ingestion::ledgers::ingest_ledgers};
 
 mod ledgers;
+mod contracts;
 
 #[derive(Error, Debug)]
 pub enum IngestionError {
