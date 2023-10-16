@@ -70,7 +70,7 @@ async fn main() {
     ingest(
         node_database,
         quasar_database,
-        &configuration.ingestion,
+        configuration.ingestion,
         metrics,
     )
     .await;

@@ -15,7 +15,7 @@ pub struct Model {
     pub hash: String,
     pub key: String,
     pub r#type: String,
-    pub last_modified: DateTime,
+    pub last_modified: i32,
 }
 
 #[ComplexObject]
@@ -45,7 +45,7 @@ impl TryFrom<contractdata::Model> for ActiveModel {
             key: Set(model.key),
             hash: Set(model.contractid.clone()),
             address: Set(address),
-            last_modified: Set(DateTime::from_timestamp_millis(model.lastmodified.into()).unwrap()),
+            last_modified: Set(model.lastmodified),
         })
     }
 }
