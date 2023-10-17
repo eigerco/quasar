@@ -1,8 +1,7 @@
-use log::{debug, error};
-use prometheus::{IntCounter, Registry};
-use quasar_entities::{account::AccountError, ledger, prelude::Ledger};
-use sea_orm::{DatabaseConnection, DbErr, EntityTrait, QueryOrder};
-use stellar_node_entities::ledgerheaders;
+use log::error;
+use prometheus::Registry;
+use quasar_entities::account::AccountError;
+use sea_orm::{DatabaseConnection, DbErr};
 use thiserror::Error;
 
 use crate::configuration::Ingestion;
@@ -29,7 +28,6 @@ pub async fn ingest(
     ingestion: Ingestion,
     metrics: Registry,
 ) {
-    let sequence = 0;
     let ledgers = ledgers::ingest(&node_database, &quasar_database, &ingestion, &metrics);
     let accounts = accounts::ingest(&node_database, &quasar_database, &ingestion);
     let contracts = contracts::ingest(&node_database, &quasar_database, &ingestion, &metrics);
