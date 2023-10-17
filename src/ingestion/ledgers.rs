@@ -8,14 +8,14 @@ use sea_orm::{DatabaseConnection, DbErr, EntityTrait, QueryOrder};
 use stellar_node_entities::ledgerheaders;
 use stellar_node_entities::prelude::Ledgerheaders;
 
-enum IngestionNeeded {
+pub enum IngestionNeeded {
     Yes {
         last_ingested_ledger_sequence: Option<i32>,
     },
     No,
 }
 
-async fn new_ledgers_available(
+pub async fn new_ledgers_available(
     node_database: &DatabaseConnection,
     quasar_database: &DatabaseConnection,
 ) -> Result<IngestionNeeded, DbErr> {
@@ -65,7 +65,6 @@ fn setup_metrics(
         .expect("Failed to register counter");
     ingested_ledgers_counter
 }
-
 pub async fn ingest_ledgers(
     node_database: &DatabaseConnection,
     quasar_database: &DatabaseConnection,
@@ -86,17 +85,14 @@ pub async fn ingest_ledgers(
 
 async fn ingest_ledger(
     ledger: ledgerheaders::Model,
-    db: &DatabaseConnection,
+    quasar_database: &DatabaseConnection,
 ) -> Result<i32, IngestionError> {
     let sequence = ledger
         .ledgerseq
         .ok_or(IngestionError::MissingLedgerSequence)?;
     info!("Ingesting ledger {}", sequence);
-
     let ledger: ledger::ActiveModel = ledger::ActiveModel::try_from(ledger).unwrap();
-
-    ledger.insert(db).await?;
-
+    ledger.insert(quasar_database).await?;
     Ok(sequence)
 }
 

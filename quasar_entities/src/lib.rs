@@ -2,5 +2,6 @@
 
 pub mod prelude;
 
+pub mod account;
 pub mod ledger;
 pub mod contract;

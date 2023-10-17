@@ -1,9 +1,15 @@
+use log::{debug, error};
+use prometheus::{IntCounter, Registry};
+use quasar_entities::{account::AccountError, ledger, prelude::Ledger};
+use sea_orm::{DatabaseConnection, DbErr, EntityTrait, QueryOrder};
+use stellar_node_entities::ledgerheaders;
+use thiserror::Error;
+
 use crate::configuration::Ingestion;
-use prometheus::Registry;
-use sea_orm::{DatabaseConnection, DbErr};
+
+mod accounts;
 mod contracts;
 mod ledgers;
-use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum IngestionError {
@@ -12,7 +18,9 @@ pub enum IngestionError {
     #[error("Missing ledger sequence")]
     MissingLedgerSequence,
     #[error("XDR decoding error: {0}")]
-    XdrError(#[from] stellar_xdr::curr::Error),
+    XdrError(#[from] stellar_xdr::Error),
+    #[error("Account error: {0}")]
+    AccountError(#[from] AccountError),
 }
 
 pub async fn ingest(
@@ -21,10 +29,11 @@ pub async fn ingest(
     ingestion: Ingestion,
     metrics: Registry,
 ) {
+    let sequence = 0;
     let ledgers = ledgers::ingest(&node_database, &quasar_database, &ingestion, &metrics);
+    let accounts = accounts::ingest(&node_database, &quasar_database, &ingestion);
     let contracts = contracts::ingest(&node_database, &quasar_database, &ingestion, &metrics);
-
-    tokio::join!(ledgers, contracts);
+    tokio::join!(ledgers, accounts, contracts);
 }
 
 pub async fn sleep(ingestion: &Ingestion) {

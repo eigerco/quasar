@@ -1,6 +1,6 @@
 use async_graphql::{Context, EmptyMutation, EmptySubscription, Object, Result, Schema};
 use log::info;
-use quasar_entities::{contract, ledger};
+use quasar_entities::{account, contract, ledger};
 use sea_orm::{DatabaseConnection, EntityTrait};
 
 pub(crate) type ServiceSchema = Schema<QueryRoot, EmptyMutation, EmptySubscription>;
@@ -17,10 +17,15 @@ impl QueryRoot {
         let database = ctx.data::<DatabaseConnection>()?;
         Ok(ledger::Entity::find().all(database).await?)
     }
-
     async fn contracts(&self, ctx: &Context<'_>) -> Result<Vec<contract::Model>> {
         let database = ctx.data::<DatabaseConnection>()?;
         Ok(contract::Entity::find().all(database).await?)
+    }
+    
+    async fn accounts(&self, ctx: &Context<'_>) -> Result<Vec<account::Model>> {
+        let database = ctx.data::<DatabaseConnection>()?;
+        Ok(account::Entity::find().all(database).await?)
+
     }
 }
 
