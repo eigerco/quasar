@@ -37,6 +37,7 @@ impl MigrationTrait for Migration {
 
 #[derive(DeriveIden)]
 enum Event {
+    #[sea_orm(iden = "events")]
     Table,
     Id,
     Topic,
