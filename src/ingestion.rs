@@ -1,23 +1,21 @@
 use log::{debug, error};
-use prometheus::Registry;
+use prometheus::{IntCounter, Registry};
 use quasar_entities::account::AccountError;
-use sea_orm::{DatabaseConnection, DbErr};
+use sea_orm::DbErr;
 use thiserror::Error;
 
 use crate::{
     configuration::Ingestion,
-    ingestion::{
-        accounts::ingest_accounts,
-        contracts::{ingest_contracts, new_contracts_available, IngestNextContract},
-        ledgers::{ingest_ledgers, new_ledgers_available, IngestionNeeded},
-    },
+    databases::{NodeDatabase, QuasarDatabase},
+    ingestion::ledgers::{ingest_ledgers, new_ledgers_available, IngestionNeeded},
+    metrics::IngestionMetrics,
 };
-
-use self::{ledgers::setup_ledger_metrics, contracts::setup_contract_metrics};
 
 mod accounts;
 mod contracts;
 mod ledgers;
+mod operations;
+mod transactions;
 
 #[derive(Error, Debug)]
 pub enum IngestionError {
@@ -31,17 +29,19 @@ pub enum IngestionError {
     AccountError(#[from] AccountError),
 }
 
-pub async fn ingest(
-    node_database: DatabaseConnection,
-    quasar_database: DatabaseConnection,
+pub(super) async fn ingest(
+    node_database: NodeDatabase,
+    quasar_database: QuasarDatabase,
     ingestion: Ingestion,
     metrics: Registry,
 ) {
-    let ingested_ledgers = setup_ledger_metrics(&metrics);
-    let ingested_contracts = setup_contract_metrics(&metrics);
+    let ingestion_metrics = setup_ingestion_metrics(&metrics);
+
     loop {
         sleep(&ingestion).await;
+
         let ingestion_needed = new_ledgers_available(&node_database, &quasar_database).await;
+
         match ingestion_needed {
             Ok(IngestionNeeded::Yes {
                 last_ingested_ledger_sequence,
@@ -51,54 +51,12 @@ pub async fn ingest(
                     &node_database,
                     &quasar_database,
                     last_ingested_ledger_sequence,
-                    &ingested_ledgers,
+                    &ingestion_metrics,
                 )
                 .await;
 
                 if let Err(error) = ingestion_result {
                     error!("Error while ingesting ledgers: {:?}", error);
-                }
-                // Accounts
-                {
-                    let account_ingestion = ingest_accounts(
-                        &node_database,
-                        &quasar_database,
-                        last_ingested_ledger_sequence.unwrap_or_default(),
-                    )
-                    .await;
-
-                    if let Err(error) = account_ingestion {
-                        error!("Error while ingesting accounts: {:?}", error);
-                    }
-                }
-
-                // Contracts
-                {
-                    let ingestion_needed =
-                        new_contracts_available(&node_database, &quasar_database).await;
-
-                    match ingestion_needed {
-                        Ok(IngestNextContract::Yes {
-                            last_ingested_contract_sequence,
-                        }) => {
-                            debug!("New contracts available");
-                            let ingestion_result = ingest_contracts(
-                                &node_database,
-                                &quasar_database,
-                                last_ingested_contract_sequence,
-                                &ingested_contracts,
-                            )
-                            .await;
-
-                            if let Err(error) = ingestion_result {
-                                error!("Error while ingesting contracts: {:?}", error);
-                            }
-                        }
-                        Ok(IngestNextContract::No) => {}
-                        Err(error) => {
-                            error!("Error while checking for new contracts: {}", error);
-                        }
-                    }
                 }
             }
             Ok(IngestionNeeded::No) => {}
@@ -111,4 +69,23 @@ pub async fn ingest(
 
 pub async fn sleep(ingestion: &Ingestion) {
     tokio::time::sleep(tokio::time::Duration::from_secs(ingestion.polling_interval)).await;
+}
+
+fn setup_ingestion_metrics(metrics: &Registry) -> IngestionMetrics {
+    let ingested_ledgers =
+        IntCounter::new("ingested_ledgers", "Number of ingested ledgers").unwrap();
+    metrics
+        .register(Box::new(ingested_ledgers.clone()))
+        .expect("Failed to register counter");
+
+    let ingested_contracts =
+        IntCounter::new("ingested_contracts", "Number of ingested contracts").unwrap();
+    metrics
+        .register(Box::new(ingested_contracts.clone()))
+        .expect("Failed to register counter");
+
+    IngestionMetrics {
+        ingested_ledgers,
+        ingested_contracts,
+    }
 }

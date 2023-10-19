@@ -8,9 +8,10 @@ use axum::{
 use axum_prometheus::PrometheusMetricLayer;
 use log::info;
 use prometheus::Registry;
-use sea_orm::DatabaseConnection;
 
-use crate::{configuration::Api, schema::build_schema, metrics::collect_metrics};
+use crate::{
+    configuration::Api, databases::QuasarDatabase, metrics::collect_metrics, schema::build_schema,
+};
 
 pub(crate) async fn graphql_playground() -> impl IntoResponse {
     Html(playground_source(
@@ -18,7 +19,7 @@ pub(crate) async fn graphql_playground() -> impl IntoResponse {
     ))
 }
 
-pub async fn serve(api: &Api, database: DatabaseConnection, metrics: Registry) {
+pub(super) async fn serve(api: &Api, database: QuasarDatabase, metrics: Registry) {
     let schema = build_schema(api.depth_limit, api.complexity_limit, database);
 
     let (prometheus_layer, metric_handle) = PrometheusMetricLayer::pair();

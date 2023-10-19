@@ -1,5 +1,10 @@
 use axum_prometheus::metrics_exporter_prometheus::PrometheusHandle;
-use prometheus::{Encoder, Registry, TextEncoder};
+use prometheus::{Encoder, IntCounter, Registry, TextEncoder};
+
+pub(super) struct IngestionMetrics {
+    pub ingested_ledgers: IntCounter,
+    pub ingested_contracts: IntCounter,
+}
 
 pub(super) fn collect_metrics(quasar_metrics: Registry, axum_metrics: PrometheusHandle) -> String {
     let mut all_families = Vec::new();
