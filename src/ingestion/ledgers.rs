@@ -1,6 +1,5 @@
-use super::{sleep, IngestionError};
-use crate::configuration::Ingestion;
-use log::{debug, error, info};
+use super::IngestionError;
+use log::info;
 use prometheus::{IntCounter, Registry};
 use quasar_entities::{ledger, prelude::Ledger};
 use sea_orm::{ActiveModelTrait, ColumnTrait, QueryFilter};
@@ -55,8 +54,8 @@ async fn last_stellar_ledger_sequence(
     Ok(last_stellar_ledger_sequence)
 }
 
-fn setup_metrics(
-    metrics: Registry,
+pub fn setup_ledger_metrics(
+    metrics: &Registry,
 ) -> prometheus::core::GenericCounter<prometheus::core::AtomicU64> {
     let ingested_ledgers_counter =
         IntCounter::new("ingested_ledgers", "Number of ingested ledgers").unwrap();
@@ -116,42 +115,4 @@ async fn next_ledger_to_ingest(
         .await?;
 
     Ok(next_ledger)
-}
-
-pub async fn ingest(
-    node_database: &DatabaseConnection,
-    quasar_database: &DatabaseConnection,
-    ingestion: &Ingestion,
-    metrics: &Registry,
-) {
-    let ingested_ledgers = setup_metrics(metrics.clone());
-    loop {
-        sleep(ingestion).await;
-
-        // Handle ledgers
-        let ingestion_needed = new_ledgers_available(node_database, quasar_database).await;
-
-        match ingestion_needed {
-            Ok(IngestionNeeded::Yes {
-                last_ingested_ledger_sequence,
-            }) => {
-                debug!("New ledgers available");
-                let ingestion_result = ingest_ledgers(
-                    node_database,
-                    quasar_database,
-                    last_ingested_ledger_sequence,
-                    &ingested_ledgers,
-                )
-                .await;
-
-                if let Err(error) = ingestion_result {
-                    error!("Error while ingesting ledgers: {:?}", error);
-                }
-            }
-            Ok(IngestionNeeded::No) => {}
-            Err(error) => {
-                error!("Error while checking for new ledgers: {}", error);
-            }
-        }
-    }
 }

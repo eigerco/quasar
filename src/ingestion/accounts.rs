@@ -1,11 +1,8 @@
-use log::{info, debug, error};
+use super::IngestionError;
+use log::info;
 use quasar_entities::account;
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use stellar_node_entities::{accounts, prelude::Accounts};
-
-use crate::configuration::Ingestion;
-
-use super::{ledgers::{new_ledgers_available, IngestionNeeded}, IngestionError, sleep};
 
 pub async fn ingest_accounts(
     node_database: &DatabaseConnection,
@@ -39,39 +36,4 @@ pub async fn ingest_account(
     account.insert(db).await?;
 
     Ok(())
-}
-
-pub async fn ingest(
-    node_database: &DatabaseConnection,
-    quasar_database: &DatabaseConnection,
-    ingestion: &Ingestion,
-) {
-    loop {
-        sleep(ingestion).await;
-
-        // Handle ledgers
-        let ingestion_needed = new_ledgers_available(node_database, quasar_database).await;
-
-        match ingestion_needed {
-            Ok(IngestionNeeded::Yes {
-                last_ingested_ledger_sequence,
-            }) => {
-                debug!("New ledgers available");
-                let ingestion_result = ingest_accounts(
-                    node_database,
-                    quasar_database,
-                    last_ingested_ledger_sequence.unwrap(),
-                )
-                .await;
-
-                if let Err(error) = ingestion_result {
-                    error!("Error while ingesting ledgers: {:?}", error);
-                }
-            }
-            Ok(IngestionNeeded::No) => {}
-            Err(error) => {
-                error!("Error while checking for new ledgers: {}", error);
-            }
-        }
-    }
 }

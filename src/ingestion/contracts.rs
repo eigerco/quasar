@@ -1,4 +1,4 @@
-use log::{debug, error, info};
+use log::info;
 use prometheus::{IntCounter, Registry};
 use quasar_entities::contract;
 use sea_orm::{
@@ -6,11 +6,9 @@ use sea_orm::{
 };
 use stellar_node_entities::{contractdata, prelude::Contractdata};
 
-use crate::{configuration::Ingestion, ingestion::IngestionError};
+use crate::ingestion::IngestionError;
 
-use super::sleep;
-
-fn setup_contract_metrics(
+pub fn setup_contract_metrics(
     metrics: &Registry,
 ) -> prometheus::core::GenericCounter<prometheus::core::AtomicU64> {
     let ingested_contract_counter =
@@ -69,14 +67,14 @@ async fn next_contract_to_ingest(
     Ok(next_contract)
 }
 
-enum IngestNextContract {
+pub enum IngestNextContract {
     Yes {
         last_ingested_contract_sequence: Option<i32>,
     },
     No,
 }
 
-async fn new_contracts_available(
+pub async fn new_contracts_available(
     node_database: &DatabaseConnection,
     quasar_database: &DatabaseConnection,
 ) -> Result<IngestNextContract, DbErr> {
@@ -111,44 +109,6 @@ async fn last_stellar_contract_sequence(
         .order_by_desc(contractdata::Column::Lastmodified)
         .one(node_database)
         .await?;
-    let last_stellar_contract_sequence =
-        last_stellar_ledger.map(|ledger| ledger.lastmodified);
+    let last_stellar_contract_sequence = last_stellar_ledger.map(|ledger| ledger.lastmodified);
     Ok(last_stellar_contract_sequence)
-}
-
-pub async fn ingest(
-    node_database: &DatabaseConnection,
-    quasar_database: &DatabaseConnection,
-    ingestion: &Ingestion,
-    metrics: &Registry,
-) {
-    let ingested_contracts = setup_contract_metrics(metrics);
-    loop {
-        sleep(ingestion).await;
-
-        let ingestion_needed = new_contracts_available(node_database, quasar_database).await;
-
-        match ingestion_needed {
-            Ok(IngestNextContract::Yes {
-                last_ingested_contract_sequence,
-            }) => {
-                debug!("New contracts available");
-                let ingestion_result = ingest_contracts(
-                    node_database,
-                    quasar_database,
-                    last_ingested_contract_sequence,
-                    &ingested_contracts,
-                )
-                .await;
-
-                if let Err(error) = ingestion_result {
-                    error!("Error while ingesting contracts: {:?}", error);
-                }
-            }
-            Ok(IngestNextContract::No) => {}
-            Err(error) => {
-                error!("Error while checking for new contracts: {}", error);
-            }
-        }
-    }
 }
