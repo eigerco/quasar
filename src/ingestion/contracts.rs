@@ -1,35 +1,39 @@
-use log::info;
-use prometheus::{IntCounter, Registry};
+use log::{debug, info};
 use quasar_entities::contract;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, QueryFilter, QueryOrder,
 };
 use stellar_node_entities::{contractdata, prelude::Contractdata};
 
-use crate::ingestion::IngestionError;
+use crate::{
+    databases::{NodeDatabase, QuasarDatabase},
+    ingestion::IngestionError,
+    metrics::IngestionMetrics,
+};
 
-pub fn setup_contract_metrics(
-    metrics: &Registry,
-) -> prometheus::core::GenericCounter<prometheus::core::AtomicU64> {
-    let ingested_contract_counter =
-        IntCounter::new("ingested_contracts", "Number of ingested contracts").unwrap();
-    metrics
-        .register(Box::new(ingested_contract_counter.clone()))
-        .expect("Failed to register counter");
-    ingested_contract_counter
-}
-
-pub async fn ingest_contracts(
-    node_database: &DatabaseConnection,
-    quasar_database: &DatabaseConnection,
-    mut last_ingested: Option<i32>,
-    counter: &IntCounter,
+pub(super) async fn ingest_contracts(
+    node_database: &NodeDatabase,
+    quasar_database: &QuasarDatabase,
+    metrics: &IngestionMetrics,
 ) -> Result<(), IngestionError> {
-    while let Some(next_contract) = next_contract_to_ingest(node_database, last_ingested).await? {
-        let ingested_sequence = ingest_contract(next_contract, quasar_database).await?;
-        last_ingested = Some(ingested_sequence);
+    let ingestion_needed = new_contracts_available(node_database, quasar_database).await?;
 
-        counter.inc();
+    match ingestion_needed {
+        IngestNextContract::Yes {
+            last_ingested_contract_sequence,
+        } => {
+            debug!("New contracts available");
+            let mut last_ingested = last_ingested_contract_sequence;
+            while let Some(next_contract) =
+                next_contract_to_ingest(node_database, last_ingested).await?
+            {
+                let ingested_sequence = ingest_contract(next_contract, quasar_database).await?;
+                last_ingested = Some(ingested_sequence);
+
+                metrics.ingested_contracts.inc();
+            }
+        }
+        IngestNextContract::No => {}
     }
 
     Ok(())
@@ -37,12 +41,12 @@ pub async fn ingest_contracts(
 
 async fn ingest_contract(
     contract: contractdata::Model,
-    db: &DatabaseConnection,
+    database: &QuasarDatabase,
 ) -> Result<i32, IngestionError> {
     let sequence = contract.lastmodified;
     info!("Ingesting contract since {}", sequence);
     let contract: contract::ActiveModel = contract::ActiveModel::try_from(contract).unwrap();
-    contract.insert(db).await?;
+    contract.insert(&**database).await?;
     Ok(sequence)
 }
 
@@ -74,9 +78,9 @@ pub enum IngestNextContract {
     No,
 }
 
-pub async fn new_contracts_available(
-    node_database: &DatabaseConnection,
-    quasar_database: &DatabaseConnection,
+pub(super) async fn new_contracts_available(
+    node_database: &NodeDatabase,
+    quasar_database: &QuasarDatabase,
 ) -> Result<IngestNextContract, DbErr> {
     let last_ingested_contract_sequence = last_ingested_contract_sequence(quasar_database).await?;
     let last_stellar_contract_sequence = last_stellar_contract_sequence(node_database).await?;

@@ -16,7 +16,7 @@
 use clap::{command, Parser};
 use configuration::setup_configuration;
 use database_metrics::start_database_metrics;
-use databases::{setup_quasar_database, setup_stellar_node_database_connection};
+use databases::{setup_quasar_database, setup_stellar_node_database};
 use ingestion::ingest;
 use logger::setup_logger;
 use prometheus::Registry;
@@ -52,7 +52,7 @@ async fn main() {
     setup_logger();
 
     let quasar_database = setup_quasar_database(&configuration).await;
-    let node_database = setup_stellar_node_database_connection(&configuration).await;
+    let node_database = setup_stellar_node_database(&configuration).await;
 
     let metrics = Registry::new();
 

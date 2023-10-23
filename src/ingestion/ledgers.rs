@@ -1,11 +1,15 @@
-use super::IngestionError;
+use crate::databases::{NodeDatabase, QuasarDatabase};
+use crate::ingestion::contracts::ingest_contracts;
+use crate::ingestion::{accounts::ingest_accounts, transactions::ingest_transactions};
+use crate::metrics::IngestionMetrics;
 use log::info;
-use prometheus::{IntCounter, Registry};
 use quasar_entities::{ledger, prelude::Ledger};
 use sea_orm::{ActiveModelTrait, ColumnTrait, QueryFilter};
 use sea_orm::{DatabaseConnection, DbErr, EntityTrait, QueryOrder};
 use stellar_node_entities::ledgerheaders;
 use stellar_node_entities::prelude::Ledgerheaders;
+
+use super::IngestionError;
 
 pub enum IngestionNeeded {
     Yes {
@@ -14,9 +18,9 @@ pub enum IngestionNeeded {
     No,
 }
 
-pub async fn new_ledgers_available(
-    node_database: &DatabaseConnection,
-    quasar_database: &DatabaseConnection,
+pub(super) async fn new_ledgers_available(
+    node_database: &NodeDatabase,
+    quasar_database: &QuasarDatabase,
 ) -> Result<IngestionNeeded, DbErr> {
     let last_ingested_ledger_sequence = last_ingested_ledger_sequence(quasar_database).await?;
     let last_stellar_ledger_sequence = last_stellar_ledger_sequence(node_database).await?;
@@ -33,11 +37,11 @@ pub async fn new_ledgers_available(
 }
 
 async fn last_ingested_ledger_sequence(
-    quasar_database: &DatabaseConnection,
+    quasar_database: &QuasarDatabase,
 ) -> Result<Option<i32>, DbErr> {
     let last_ingested_ledger = Ledger::find()
         .order_by_desc(ledger::Column::Sequence)
-        .one(quasar_database)
+        .one(quasar_database.as_inner())
         .await?;
     let last_ingested_ledger_sequence = last_ingested_ledger.map(|ledger| ledger.sequence);
     Ok(last_ingested_ledger_sequence)
@@ -54,45 +58,51 @@ async fn last_stellar_ledger_sequence(
     Ok(last_stellar_ledger_sequence)
 }
 
-pub fn setup_ledger_metrics(
-    metrics: &Registry,
-) -> prometheus::core::GenericCounter<prometheus::core::AtomicU64> {
-    let ingested_ledgers_counter =
-        IntCounter::new("ingested_ledgers", "Number of ingested ledgers").unwrap();
-    metrics
-        .register(Box::new(ingested_ledgers_counter.clone()))
-        .expect("Failed to register counter");
-    ingested_ledgers_counter
-}
-pub async fn ingest_ledgers(
-    node_database: &DatabaseConnection,
-    quasar_database: &DatabaseConnection,
+pub(super) async fn ingest_ledgers(
+    node_database: &NodeDatabase,
+    quasar_database: &QuasarDatabase,
     mut last_ingested_ledger_sequence: Option<i32>,
-    counter: &IntCounter,
+    metrics: &IngestionMetrics,
 ) -> Result<(), IngestionError> {
     while let Some(next_ledger) =
         next_ledger_to_ingest(node_database, last_ingested_ledger_sequence).await?
     {
-        let ingested_sequence = ingest_ledger(next_ledger, quasar_database).await?;
+        let ingested_sequence =
+            handle_new_ledger(next_ledger, quasar_database, node_database, metrics).await?;
         last_ingested_ledger_sequence = Some(ingested_sequence);
 
-        counter.inc();
+        metrics.ingested_ledgers.inc();
     }
 
     Ok(())
 }
 
-async fn ingest_ledger(
+async fn handle_new_ledger(
     ledger: ledgerheaders::Model,
-    quasar_database: &DatabaseConnection,
+    quasar_database: &QuasarDatabase,
+    node_database: &NodeDatabase,
+    metrics: &IngestionMetrics,
 ) -> Result<i32, IngestionError> {
     let sequence = ledger
         .ledgerseq
         .ok_or(IngestionError::MissingLedgerSequence)?;
-    info!("Ingesting ledger {}", sequence);
-    let ledger: ledger::ActiveModel = ledger::ActiveModel::try_from(ledger).unwrap();
-    ledger.insert(quasar_database).await?;
+    info!("Ingesting ledger {} and associated data", sequence);
+
+    ingest_ledger(ledger, quasar_database).await?;
+    ingest_accounts(node_database, quasar_database, sequence).await?;
+    ingest_transactions(node_database, quasar_database, sequence).await?;
+    ingest_contracts(node_database, quasar_database, metrics).await?;
+
     Ok(sequence)
+}
+
+async fn ingest_ledger(
+    ledger: ledgerheaders::Model,
+    quasar_database: &DatabaseConnection,
+) -> Result<(), IngestionError> {
+    let ledger: ledger::ActiveModel = ledger::ActiveModel::try_from(ledger)?;
+    ledger.insert(quasar_database).await?;
+    Ok(())
 }
 
 async fn next_ledger_to_ingest(
