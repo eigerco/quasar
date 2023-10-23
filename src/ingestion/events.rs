@@ -6,8 +6,6 @@ use sea_orm::DatabaseConnection;
 use stellar_node_entities::txhistory;
 use stellar_xdr::{ReadXdr, TransactionMeta};
 
-pub struct Transaction(TransactionMeta);
-
 pub async fn ingest_events(
     db: &DatabaseConnection,
     transaction_meta: TransactionMeta,
