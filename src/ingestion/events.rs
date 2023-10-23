@@ -1,29 +1,28 @@
-// Events are stored as operations in transactions.
-// https://github.com/stellar/go/blob/776596261aa19191100a42c1534e87346567f3f4/exp/services/soroban-rpc/internal/methods/get_events.go#L283
-
 use quasar_entities::event;
-use sea_orm::DatabaseConnection;
-use stellar_node_entities::txhistory;
-use stellar_xdr::{ReadXdr, TransactionMeta};
+use sea_orm::{ActiveModelTrait, DatabaseConnection, Set};
+use stellar_xdr::TransactionMeta;
+
+use super::IngestionError;
 
 pub async fn ingest_events(
     db: &DatabaseConnection,
     transaction_meta: TransactionMeta,
+    ledger_seq: i32,
 ) -> Result<(), IngestionError> {
-    // let transaction_meta = TransactionMeta::from_xdr_base64(stellar_node_transaction.txmeta)?;
     match transaction_meta {
         TransactionMeta::V3(v3) => match v3.soroban_meta {
-            None => return,
+            None => return Ok(()),
             Some(meta) => {
                 let events = meta.events;
-                for event in events.into_iter() {
-                    let mut event: event::ActiveModel = event::ActiveModel::try_from(event)?;
-                    event.ledger = Set(stellar_node_transaction.ledgerseq);
+                for event in events.iter() {
+                    let mut event: event::ActiveModel =
+                        event::ActiveModel::try_from(event.clone())?;
+                    event.ledger = Set(ledger_seq);
                     event.insert(db).await?;
                 }
             }
         },
-        _ => unimplemented!("We only consume soroban events"),
+        _ => log::warn!("We only consume soroban events"),
     }
     Ok(())
 }

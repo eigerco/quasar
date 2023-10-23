@@ -2,11 +2,11 @@ use log::info;
 use quasar_entities::transaction;
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
 use stellar_node_entities::{prelude::Txhistory, txhistory};
-use stellar_xdr::{ReadXdr, TransactionEnvelope};
+use stellar_xdr::{ReadXdr, TransactionEnvelope, TransactionMeta};
 
 use crate::databases::{NodeDatabase, QuasarDatabase};
 
-use super::{operations::ingest_operations, IngestionError};
+use super::{events::ingest_events, operations::ingest_operations, IngestionError};
 
 pub(super) async fn ingest_transactions(
     node_database: &NodeDatabase,
@@ -35,8 +35,8 @@ pub(super) async fn ingest_transaction(
     db: &QuasarDatabase,
     stellar_node_transaction: txhistory::Model,
 ) -> Result<(), IngestionError> {
-    let transaction_body = TransactionEnvelope::from_xdr_base64(stellar_node_transaction.txbody)?;
-
+    let transaction_body = TransactionEnvelope::from_xdr_base64(&stellar_node_transaction.txbody)?;
+    let transaction_meta = TransactionMeta::from_xdr_base64(&stellar_node_transaction.txmeta)?;
     let mut transaction: transaction::ActiveModel =
         transaction::ActiveModel::try_from(transaction_body.clone())?;
 
@@ -45,7 +45,9 @@ pub(super) async fn ingest_transaction(
     transaction.ledger_sequence = Set(stellar_node_transaction.ledgerseq);
     transaction.insert(db.as_inner()).await?;
 
-    ingest_operations(db, stellar_node_transaction.txid, transaction_body).await?;
+    ingest_operations(db, &stellar_node_transaction.txid, transaction_body).await?;
+
+    ingest_events(&db, transaction_meta, stellar_node_transaction.ledgerseq).await?;
 
     Ok(())
 }

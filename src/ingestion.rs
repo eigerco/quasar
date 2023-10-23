@@ -16,6 +16,7 @@ mod contracts;
 mod ledgers;
 mod operations;
 mod transactions;
+mod events;
 
 #[derive(Error, Debug)]
 pub enum IngestionError {
