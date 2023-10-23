@@ -29,6 +29,6 @@ quasar_migrations = { path = "quasar_migrations" }
 sea-orm = { workspace = true, features = ["sqlx-postgres", "runtime-tokio-rustls"] }
 serde = { version = "1.0.188", features = ["derive"] }
 stellar_node_entities = { path = "stellar_node_entities" }
-stellar-xdr = { version = "0.0.17", features = ["base64"] }
+stellar-xdr = { version = "20.0.0-rc1", features = ["base64"] }
 thiserror.workspace = true
 tokio = { version = "1.32.0", features = ["full"] }

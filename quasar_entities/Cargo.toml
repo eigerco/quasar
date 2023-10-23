@@ -8,5 +8,5 @@ async-graphql = { workspace = true, features = ["decimal", "chrono", "dataloader
 base64 = "0.21.4"
 sea-orm = { workspace = true }
 stellar_node_entities = { path = "../stellar_node_entities" }
-stellar-xdr = { version = "0.0.17", features = ["base64"] }
+stellar-xdr = { version = "20.0.0-rc1", features = ["base64"] }
 thiserror.workspace = true
