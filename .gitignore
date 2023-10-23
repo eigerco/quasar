@@ -30,3 +30,4 @@ devenv.local.nix
 /target
 
 config/local.*
+config/config.toml
