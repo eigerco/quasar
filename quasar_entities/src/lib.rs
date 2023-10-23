@@ -3,5 +3,8 @@
 pub mod prelude;
 
 pub mod account;
-pub mod ledger;
+pub mod contract;
 pub mod event;
+pub mod ledger;
+pub mod operation;
+pub mod transaction;

@@ -1,6 +1,9 @@
 use async_graphql::{Context, EmptyMutation, EmptySubscription, Object, Result, Schema};
-use quasar_entities::{account, ledger, event};
+use log::info;
+use quasar_entities::{account, contract, ledger, operation, transaction, event};
 use sea_orm::{DatabaseConnection, EntityTrait};
+
+use crate::databases::QuasarDatabase;
 
 pub(crate) type ServiceSchema = Schema<QueryRoot, EmptyMutation, EmptySubscription>;
 
@@ -16,6 +19,10 @@ impl QueryRoot {
         let database = ctx.data::<DatabaseConnection>()?;
         Ok(ledger::Entity::find().all(database).await?)
     }
+    async fn contracts(&self, ctx: &Context<'_>) -> Result<Vec<contract::Model>> {
+        let database = ctx.data::<DatabaseConnection>()?;
+        Ok(contract::Entity::find().all(database).await?)
+    }
 
     async fn accounts(&self, ctx: &Context<'_>) -> Result<Vec<account::Model>> {
         let database = ctx.data::<DatabaseConnection>()?;
@@ -26,17 +33,31 @@ impl QueryRoot {
         let database = ctx.data::<DatabaseConnection>()?;
         Ok(event::Entity::find().all(database).await?)
     }
+    
+    async fn transactions(&self, ctx: &Context<'_>) -> Result<Vec<transaction::Model>> {
+        let database = ctx.data::<DatabaseConnection>()?;
+        Ok(transaction::Entity::find().all(database).await?)
+    }
+
+    async fn operations(&self, ctx: &Context<'_>) -> Result<Vec<operation::Model>> {
+        let database = ctx.data::<DatabaseConnection>()?;
+        Ok(operation::Entity::find().all(database).await?)
+    }
 }
 
 pub(crate) fn build_schema(
     depth_limit: usize,
     complexity_limit: usize,
-    database: DatabaseConnection,
+    database: QuasarDatabase,
 ) -> ServiceSchema {
     let mut schema = Schema::build(QueryRoot, EmptyMutation, EmptySubscription).data(database);
 
-    schema = schema.limit_depth(depth_limit);
-    schema = schema.limit_complexity(complexity_limit);
+    if cfg!(debug_assertions) {
+        info!("Debugging enabled, no limits on query");
+    } else {
+        schema = schema.limit_depth(depth_limit);
+        schema = schema.limit_complexity(complexity_limit);
+    }
 
     schema.finish()
 }

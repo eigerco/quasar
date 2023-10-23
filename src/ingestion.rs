@@ -1,14 +1,21 @@
 use log::{debug, error};
 use prometheus::{IntCounter, Registry};
-use quasar_entities::{account::AccountError, ledger, prelude::Ledger};
-use sea_orm::{DatabaseConnection, DbErr, EntityTrait, QueryOrder};
-use stellar_node_entities::ledgerheaders;
+use quasar_entities::account::AccountError;
+use sea_orm::DbErr;
 use thiserror::Error;
 
-use crate::{configuration::Ingestion, ingestion::ledgers::ingest_ledgers};
+use crate::{
+    configuration::Ingestion,
+    databases::{NodeDatabase, QuasarDatabase},
+    ingestion::ledgers::{ingest_ledgers, new_ledgers_available, IngestionNeeded},
+    metrics::IngestionMetrics,
+};
 
 mod accounts;
+mod contracts;
 mod ledgers;
+mod operations;
+mod transactions;
 
 #[derive(Error, Debug)]
 pub enum IngestionError {
@@ -22,74 +29,16 @@ pub enum IngestionError {
     AccountError(#[from] AccountError),
 }
 
-enum IngestionNeeded {
-    Yes {
-        last_ingested_ledger_sequence: Option<i32>,
-    },
-    No,
-}
-
-async fn new_ledgers_available(
-    node_database: &DatabaseConnection,
-    quasar_database: &DatabaseConnection,
-) -> Result<IngestionNeeded, DbErr> {
-    let last_ingested_ledger_sequence = last_ingested_ledger_sequence(quasar_database).await?;
-    let last_stellar_ledger_sequence = last_stellar_ledger_sequence(node_database).await?;
-
-    let ingestion_needed = if last_ingested_ledger_sequence != last_stellar_ledger_sequence {
-        IngestionNeeded::Yes {
-            last_ingested_ledger_sequence,
-        }
-    } else {
-        IngestionNeeded::No
-    };
-
-    Ok(ingestion_needed)
-}
-
-async fn last_ingested_ledger_sequence(
-    quasar_database: &DatabaseConnection,
-) -> Result<Option<i32>, DbErr> {
-    let last_ingested_ledger = Ledger::find()
-        .order_by_desc(ledger::Column::Sequence)
-        .one(quasar_database)
-        .await?;
-    let last_ingested_ledger_sequence = last_ingested_ledger.map(|ledger| ledger.sequence);
-    Ok(last_ingested_ledger_sequence)
-}
-
-async fn last_stellar_ledger_sequence(
-    node_database: &DatabaseConnection,
-) -> Result<Option<i32>, DbErr> {
-    let last_stellar_ledger = ledgerheaders::Entity::find()
-        .order_by_desc(ledgerheaders::Column::Ledgerseq)
-        .one(node_database)
-        .await?;
-    let last_stellar_ledger_sequence = last_stellar_ledger.and_then(|ledger| ledger.ledgerseq);
-    Ok(last_stellar_ledger_sequence)
-}
-
-fn setup_metrics(
-    metrics: Registry,
-) -> prometheus::core::GenericCounter<prometheus::core::AtomicU64> {
-    let ingested_ledgers_counter =
-        IntCounter::new("ingested_ledgers", "Number of ingested ledgers").unwrap();
-    metrics
-        .register(Box::new(ingested_ledgers_counter.clone()))
-        .expect("Failed to register counter");
-    ingested_ledgers_counter
-}
-
-pub async fn ingest(
-    node_database: DatabaseConnection,
-    quasar_database: DatabaseConnection,
-    ingestion: &Ingestion,
+pub(super) async fn ingest(
+    node_database: NodeDatabase,
+    quasar_database: QuasarDatabase,
+    ingestion: Ingestion,
     metrics: Registry,
 ) {
-    let ingested_ledgers = setup_metrics(metrics);
+    let ingestion_metrics = setup_ingestion_metrics(&metrics);
 
     loop {
-        sleep(ingestion).await;
+        sleep(&ingestion).await;
 
         let ingestion_needed = new_ledgers_available(&node_database, &quasar_database).await;
 
@@ -102,7 +51,7 @@ pub async fn ingest(
                     &node_database,
                     &quasar_database,
                     last_ingested_ledger_sequence,
-                    &ingested_ledgers,
+                    &ingestion_metrics,
                 )
                 .await;
 
@@ -118,6 +67,25 @@ pub async fn ingest(
     }
 }
 
-async fn sleep(ingestion: &Ingestion) {
+pub async fn sleep(ingestion: &Ingestion) {
     tokio::time::sleep(tokio::time::Duration::from_secs(ingestion.polling_interval)).await;
+}
+
+fn setup_ingestion_metrics(metrics: &Registry) -> IngestionMetrics {
+    let ingested_ledgers =
+        IntCounter::new("ingested_ledgers", "Number of ingested ledgers").unwrap();
+    metrics
+        .register(Box::new(ingested_ledgers.clone()))
+        .expect("Failed to register counter");
+
+    let ingested_contracts =
+        IntCounter::new("ingested_contracts", "Number of ingested contracts").unwrap();
+    metrics
+        .register(Box::new(ingested_contracts.clone()))
+        .expect("Failed to register counter");
+
+    IngestionMetrics {
+        ingested_ledgers,
+        ingested_contracts,
+    }
 }
