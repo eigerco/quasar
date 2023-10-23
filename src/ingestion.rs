@@ -1,13 +1,22 @@
 use log::{debug, error};
-use prometheus::{IntCounter, Registry};
-use quasar_entities::{account::AccountError, ledger, prelude::Ledger};
-use sea_orm::{DatabaseConnection, DbErr, EntityTrait, QueryOrder};
-use stellar_node_entities::ledgerheaders;
+use prometheus::Registry;
+use quasar_entities::account::AccountError;
+use sea_orm::{DatabaseConnection, DbErr};
 use thiserror::Error;
 
-use crate::{configuration::Ingestion, ingestion::ledgers::ingest_ledgers};
+use crate::{
+    configuration::Ingestion,
+    ingestion::{
+        accounts::ingest_accounts,
+        contracts::{ingest_contracts, new_contracts_available, IngestNextContract},
+        ledgers::{ingest_ledgers, new_ledgers_available, IngestionNeeded},
+    },
+};
+
+use self::{ledgers::setup_ledger_metrics, contracts::setup_contract_metrics};
 
 mod accounts;
+mod contracts;
 mod ledgers;
 
 #[derive(Error, Debug)]
@@ -22,77 +31,17 @@ pub enum IngestionError {
     AccountError(#[from] AccountError),
 }
 
-enum IngestionNeeded {
-    Yes {
-        last_ingested_ledger_sequence: Option<i32>,
-    },
-    No,
-}
-
-async fn new_ledgers_available(
-    node_database: &DatabaseConnection,
-    quasar_database: &DatabaseConnection,
-) -> Result<IngestionNeeded, DbErr> {
-    let last_ingested_ledger_sequence = last_ingested_ledger_sequence(quasar_database).await?;
-    let last_stellar_ledger_sequence = last_stellar_ledger_sequence(node_database).await?;
-
-    let ingestion_needed = if last_ingested_ledger_sequence != last_stellar_ledger_sequence {
-        IngestionNeeded::Yes {
-            last_ingested_ledger_sequence,
-        }
-    } else {
-        IngestionNeeded::No
-    };
-
-    Ok(ingestion_needed)
-}
-
-async fn last_ingested_ledger_sequence(
-    quasar_database: &DatabaseConnection,
-) -> Result<Option<i32>, DbErr> {
-    let last_ingested_ledger = Ledger::find()
-        .order_by_desc(ledger::Column::Sequence)
-        .one(quasar_database)
-        .await?;
-    let last_ingested_ledger_sequence = last_ingested_ledger.map(|ledger| ledger.sequence);
-    Ok(last_ingested_ledger_sequence)
-}
-
-async fn last_stellar_ledger_sequence(
-    node_database: &DatabaseConnection,
-) -> Result<Option<i32>, DbErr> {
-    let last_stellar_ledger = ledgerheaders::Entity::find()
-        .order_by_desc(ledgerheaders::Column::Ledgerseq)
-        .one(node_database)
-        .await?;
-    let last_stellar_ledger_sequence = last_stellar_ledger.and_then(|ledger| ledger.ledgerseq);
-    Ok(last_stellar_ledger_sequence)
-}
-
-fn setup_metrics(
-    metrics: Registry,
-) -> prometheus::core::GenericCounter<prometheus::core::AtomicU64> {
-    let ingested_ledgers_counter =
-        IntCounter::new("ingested_ledgers", "Number of ingested ledgers").unwrap();
-    metrics
-        .register(Box::new(ingested_ledgers_counter.clone()))
-        .expect("Failed to register counter");
-    ingested_ledgers_counter
-}
-
 pub async fn ingest(
     node_database: DatabaseConnection,
     quasar_database: DatabaseConnection,
-    ingestion: &Ingestion,
+    ingestion: Ingestion,
     metrics: Registry,
 ) {
-    let ingested_ledgers = setup_metrics(metrics);
-
+    let ingested_ledgers = setup_ledger_metrics(&metrics);
+    let ingested_contracts = setup_contract_metrics(&metrics);
     loop {
-        sleep(ingestion).await;
-
+        sleep(&ingestion).await;
         let ingestion_needed = new_ledgers_available(&node_database, &quasar_database).await;
-
         match ingestion_needed {
             Ok(IngestionNeeded::Yes {
                 last_ingested_ledger_sequence,
@@ -109,6 +58,48 @@ pub async fn ingest(
                 if let Err(error) = ingestion_result {
                     error!("Error while ingesting ledgers: {:?}", error);
                 }
+                // Accounts
+                {
+                    let account_ingestion = ingest_accounts(
+                        &node_database,
+                        &quasar_database,
+                        last_ingested_ledger_sequence.unwrap_or_default(),
+                    )
+                    .await;
+
+                    if let Err(error) = account_ingestion {
+                        error!("Error while ingesting accounts: {:?}", error);
+                    }
+                }
+
+                // Contracts
+                {
+                    let ingestion_needed =
+                        new_contracts_available(&node_database, &quasar_database).await;
+
+                    match ingestion_needed {
+                        Ok(IngestNextContract::Yes {
+                            last_ingested_contract_sequence,
+                        }) => {
+                            debug!("New contracts available");
+                            let ingestion_result = ingest_contracts(
+                                &node_database,
+                                &quasar_database,
+                                last_ingested_contract_sequence,
+                                &ingested_contracts,
+                            )
+                            .await;
+
+                            if let Err(error) = ingestion_result {
+                                error!("Error while ingesting contracts: {:?}", error);
+                            }
+                        }
+                        Ok(IngestNextContract::No) => {}
+                        Err(error) => {
+                            error!("Error while checking for new contracts: {}", error);
+                        }
+                    }
+                }
             }
             Ok(IngestionNeeded::No) => {}
             Err(error) => {
@@ -118,6 +109,6 @@ pub async fn ingest(
     }
 }
 
-async fn sleep(ingestion: &Ingestion) {
+pub async fn sleep(ingestion: &Ingestion) {
     tokio::time::sleep(tokio::time::Duration::from_secs(ingestion.polling_interval)).await;
 }

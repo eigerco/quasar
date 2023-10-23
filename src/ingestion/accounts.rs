@@ -1,9 +1,8 @@
+use super::IngestionError;
 use log::info;
 use quasar_entities::account;
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use stellar_node_entities::{accounts, prelude::Accounts};
-
-use super::IngestionError;
 
 pub async fn ingest_accounts(
     node_database: &DatabaseConnection,

@@ -10,7 +10,7 @@ use log::info;
 use prometheus::Registry;
 use sea_orm::DatabaseConnection;
 
-use crate::{configuration::Api, metrics::collect_metrics, schema::build_schema};
+use crate::{configuration::Api, schema::build_schema, metrics::collect_metrics};
 
 pub(crate) async fn graphql_playground() -> impl IntoResponse {
     Html(playground_source(
