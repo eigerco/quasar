@@ -51,6 +51,5 @@ enum Contract {
     Key,
     Type,
     LastModified,
-    // TODO: @geofmureithi Soroban contracts can be introspected.
     // Methods
 }
