@@ -47,7 +47,7 @@ pub(super) async fn ingest_transaction(
 
     ingest_operations(db, &stellar_node_transaction.txid, transaction_body).await?;
 
-    ingest_events(&db, transaction_meta, stellar_node_transaction.ledgerseq).await?;
+    ingest_events(&db, transaction_meta, &stellar_node_transaction.txid).await?;
 
     Ok(())
 }

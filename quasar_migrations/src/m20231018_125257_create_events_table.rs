@@ -20,7 +20,7 @@ impl MigrationTrait for Migration {
                     )
                     .col(ColumnDef::new(Event::Topic).string().not_null())
                     .col(ColumnDef::new(Event::ContractId).string().not_null())
-                    .col(ColumnDef::new(Event::Ledger).integer().not_null())
+                    .col(ColumnDef::new(Event::TransactionId).string().not_null())
                     .col(ColumnDef::new(Event::Value).json().not_null())
                     .col(ColumnDef::new(Event::Type).string().not_null())
                     .to_owned(),
@@ -42,7 +42,7 @@ enum Event {
     Id,
     Topic,
     ContractId,
-    Ledger,
+    TransactionId,
     Value,
     Type
 }
