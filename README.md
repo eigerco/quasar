@@ -35,8 +35,9 @@ database_polling_interval = 5
 Install `quasar` from the releases page. Here is an example in Linux:
 
 ```bash
-  curl -L https://github.com/eigerco/quasar/releases/download/v0.1.0/quasar > quasar
-  ./quasar
+  curl -L https://github.com/eigerco/quasar/releases/download/<version>/quasar_indexer-x86_64-unknown-linux-gnu.tar.gz > quasar.tar.gz
+  tar -xf quasar.tar.gz
+  ./quasar_indexer
 ```
 
 ## Development
