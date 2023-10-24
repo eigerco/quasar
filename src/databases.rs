@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use sea_orm::Database;
 
 use log::{error, info};
@@ -8,13 +10,46 @@ use sea_orm::DatabaseConnection;
 
 use crate::configuration::Configuration;
 
-pub(super) async fn setup_quasar_database(configuration: &Configuration) -> DatabaseConnection {
+#[derive(Clone)]
+pub(super) struct NodeDatabase(DatabaseConnection);
+#[derive(Clone)]
+pub(super) struct QuasarDatabase(DatabaseConnection);
+
+impl Deref for NodeDatabase {
+    type Target = DatabaseConnection;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl NodeDatabase {
+    pub fn as_inner(&self) -> &DatabaseConnection {
+        &self.0
+    }
+}
+
+impl Deref for QuasarDatabase {
+    type Target = DatabaseConnection;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl QuasarDatabase {
+    pub fn as_inner(&self) -> &DatabaseConnection {
+        &self.0
+    }
+}
+
+pub(super) async fn setup_quasar_database(configuration: &Configuration) -> QuasarDatabase {
     let quasar_database = setup_quasar_database_connection(configuration).await;
     Migrator::up(&quasar_database, None)
         .await
         .expect("Migration failed");
 
-    quasar_database
+    QuasarDatabase(quasar_database)
 }
 
 async fn setup_quasar_database_connection(configuration: &Configuration) -> DatabaseConnection {
@@ -28,16 +63,14 @@ async fn setup_quasar_database_connection(configuration: &Configuration) -> Data
     }
 }
 
-pub(super) async fn setup_stellar_node_database_connection(
-    configuration: &Configuration,
-) -> DatabaseConnection {
+pub(super) async fn setup_stellar_node_database(configuration: &Configuration) -> NodeDatabase {
     if let Some(node_database_url) = &configuration.stellar_node_database_url {
         info!(
             "Connecting the Stellar node database: {}",
             node_database_url
         );
 
-        setup_connection(node_database_url).await
+        NodeDatabase(setup_connection(node_database_url).await)
     } else {
         error!("Node database URL not set. Use config/, -s or --stellar-node-database-url");
         std::process::exit(1);
