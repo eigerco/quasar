@@ -95,7 +95,7 @@ fn val_to_json(val: &ScVal) -> Json {
             "symbol": s.to_string().unwrap()
         }),
         ScVal::Vec(val) => match val {
-            Some(val) => val.iter().map(|v| val_to_json(v)).collect::<Json>(),
+            Some(val) => val.iter().map(val_to_json).collect::<Json>(),
             None => Json::Null,
         },
         ScVal::Map(map) => match map {
