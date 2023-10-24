@@ -1,38 +1,44 @@
 name: publish release
-
 on:
-  release:
-    types: [created]
+  push:
+    tags:
+      - v[0-9]+.*
 
 jobs:
-  release:
-    name: publish ${{ matrix.name }}
-    strategy:
-      fail-fast: true
-      matrix:
-        include:
-          - target: x86_64-pc-windows-gnu
-            suffix: windows-x86_64
-            archive: zip
-            name: x86_64-pc-windows-gnu
-          - target: x86_64-unknown-linux-gnu
-            suffix: linux-x86_64
-            archive: tar.xz
-            name: x86_64-unknown-linux-gnu
-          - target: x86_64-apple-darwin
-            suffix: darwin-x86_64
-            archive: tar.gz
-            name: x86_64-apple-darwin
+  create-release:
     runs-on: ubuntu-latest
     steps:
-      - name: Clone test repository
-        uses: actions/checkout@v2
-      - uses: xhaiker/rust-release.action@v1.0.0
-        name: build ${{ matrix.name }}
-        with:
-          rust_target: ${{ matrix.target }}
-          archive_suffix: ${{ matrix.suffix }}
-          archive_types: ${{ matrix.archive }}
-          extra_files: "README.md LICENSE"
+      - uses: actions/checkout@v3
+      - uses: taiki-e/create-gh-release-action@v1
+        # with:
+          # (optional)
+          # changelog: CHANGELOG.md
         env:
+          # (required)
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  upload-assets:
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: taiki-e/upload-rust-binary-action@v1
+        with:
+          # (required)
+          bin: quasar
+          # (optional) On which platform to distribute the `.tar.gz` file.
+          # [default value: unix]
+          # [possible values: all, unix, windows, none]
+          tar: unix
+          # (optional) On which platform to distribute the `.zip` file.
+          # [default value: windows]
+          # [possible values: all, unix, windows, none]
+          zip: windows
+        env:
+          # (required)
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
