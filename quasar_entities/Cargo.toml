@@ -13,3 +13,4 @@ stellar-xdr = { workspace = true, features = ["base64"] }
 stellar-strkey = { git = "https://github.com/stellar/rs-stellar-strkey" }
 soroban-env-host = "20.0.0-rc2"
 thiserror.workspace = true
+

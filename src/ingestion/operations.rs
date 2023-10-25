@@ -8,7 +8,7 @@ use super::IngestionError;
 
 pub(super) async fn ingest_operations(
     db: &QuasarDatabase,
-    transaction_id: String,
+    transaction_id: &str,
     transaction_tx_body: TransactionEnvelope,
 ) -> Result<(), IngestionError> {
     let operations: Vec<Operation> = match transaction_tx_body {
@@ -20,7 +20,7 @@ pub(super) async fn ingest_operations(
     for (index, operation) in operations.into_iter().enumerate() {
         let mut operation: operation::ActiveModel = operation::ActiveModel::try_from(operation)?;
 
-        operation.transaction_id = Set(transaction_id.clone());
+        operation.transaction_id = Set(transaction_id.to_owned());
         operation.application_order = Set(index as i32 + 1);
 
         operation.insert(db.as_inner()).await?;

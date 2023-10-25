@@ -1,6 +1,6 @@
 use async_graphql::{Context, EmptyMutation, EmptySubscription, Object, Result, Schema};
 use log::info;
-use quasar_entities::{account, contract, ledger, operation, transaction};
+use quasar_entities::{account, contract, ledger, operation, transaction, event};
 use sea_orm::{DatabaseConnection, EntityTrait};
 
 use crate::databases::QuasarDatabase;
@@ -29,6 +29,11 @@ impl QueryRoot {
         Ok(account::Entity::find().all(database).await?)
     }
 
+    async fn events(&self, ctx: &Context<'_>) -> Result<Vec<event::Model>> {
+        let database = ctx.data::<DatabaseConnection>()?;
+        Ok(event::Entity::find().all(database).await?)
+    }
+    
     async fn transactions(&self, ctx: &Context<'_>) -> Result<Vec<transaction::Model>> {
         let database = ctx.data::<DatabaseConnection>()?;
         Ok(transaction::Entity::find().all(database).await?)
