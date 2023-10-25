@@ -104,26 +104,21 @@ fn val_to_json(val: &ScVal) -> Result<Json, EventError> {
         ScVal::Symbol(s) => json!({
             "symbol": s.to_string()?
         }),
-        ScVal::Vec(val) => match val {
-            Some(val) => val
-                .iter()
-                .map(val_to_json)
-                .collect::<Result<Json, EventError>>()?,
-            None => Json::Null,
-        },
-        ScVal::Map(map) => match map {
-            Some(val) => val
-                .iter()
-                .map(|v| {
-                    let key = val_to_json(&v.key)?.to_string();
-                    let val = val_to_json(&v.val)?;
-                    Ok(json!({
-                        key: val
-                    }))
-                })
-                .collect::<Result<Json, EventError>>()?,
-            None => Json::Null,
-        },
+        ScVal::Vec(Some(val)) => val
+            .iter()
+            .map(val_to_json)
+            .collect::<Result<Json, EventError>>()?,
+        ScVal::Map(Some(map)) => map
+            .iter()
+            .map(|v| {
+                let key = val_to_json(&v.key)?.to_string();
+                let val = val_to_json(&v.val)?;
+                Ok(json!({
+                    key: val
+                }))
+            })
+            .collect::<Result<Json, EventError>>()?,
+
         ScVal::Address(a) => json!({
             "address": println!("{a:?}")
         }),
