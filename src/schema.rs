@@ -1,7 +1,7 @@
 use async_graphql::{Context, EmptyMutation, EmptySubscription, Object, Result, Schema};
 use log::info;
-use quasar_entities::{account, contract, ledger, operation, transaction, event};
-use sea_orm::{DatabaseConnection, EntityTrait};
+use quasar_entities::{account, contract, event, ledger, operation, transaction};
+use sea_orm::EntityTrait;
 
 use crate::databases::QuasarDatabase;
 
@@ -16,31 +16,31 @@ impl QueryRoot {
     }
 
     async fn ledgers(&self, ctx: &Context<'_>) -> Result<Vec<ledger::Model>> {
-        let database = ctx.data::<DatabaseConnection>()?;
+        let database = ctx.data::<QuasarDatabase>()?.as_inner();
         Ok(ledger::Entity::find().all(database).await?)
     }
     async fn contracts(&self, ctx: &Context<'_>) -> Result<Vec<contract::Model>> {
-        let database = ctx.data::<DatabaseConnection>()?;
+        let database = ctx.data::<QuasarDatabase>()?.as_inner();
         Ok(contract::Entity::find().all(database).await?)
     }
 
     async fn accounts(&self, ctx: &Context<'_>) -> Result<Vec<account::Model>> {
-        let database = ctx.data::<DatabaseConnection>()?;
+        let database = ctx.data::<QuasarDatabase>()?.as_inner();
         Ok(account::Entity::find().all(database).await?)
     }
 
     async fn events(&self, ctx: &Context<'_>) -> Result<Vec<event::Model>> {
-        let database = ctx.data::<DatabaseConnection>()?;
+        let database = ctx.data::<QuasarDatabase>()?.as_inner();
         Ok(event::Entity::find().all(database).await?)
     }
-    
+
     async fn transactions(&self, ctx: &Context<'_>) -> Result<Vec<transaction::Model>> {
-        let database = ctx.data::<DatabaseConnection>()?;
+        let database = ctx.data::<QuasarDatabase>()?.as_inner();
         Ok(transaction::Entity::find().all(database).await?)
     }
 
     async fn operations(&self, ctx: &Context<'_>) -> Result<Vec<operation::Model>> {
-        let database = ctx.data::<DatabaseConnection>()?;
+        let database = ctx.data::<QuasarDatabase>()?.as_inner();
         Ok(operation::Entity::find().all(database).await?)
     }
 }
