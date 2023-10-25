@@ -20,7 +20,7 @@ pub async fn ingest_events(
                     let mut event: event::ActiveModel =
                         event::ActiveModel::try_from(event.clone())?;
                     event.transaction_id = Set(transaction_id.to_owned());
-                    event.insert(db).await.unwrap();
+                    event.insert(db).await?;
                 }
             }
         },
