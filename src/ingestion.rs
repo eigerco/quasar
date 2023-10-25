@@ -1,6 +1,6 @@
 use log::{debug, error};
 use prometheus::{IntCounter, Registry};
-use quasar_entities::account::AccountError;
+use quasar_entities::{account::AccountError, event::EventError};
 use sea_orm::DbErr;
 use thiserror::Error;
 
@@ -28,6 +28,8 @@ pub enum IngestionError {
     XdrError(#[from] stellar_xdr::Error),
     #[error("Account error: {0}")]
     AccountError(#[from] AccountError),
+    #[error("Event error: {0}")]
+    EventError(#[from] EventError),
 }
 
 pub(super) async fn ingest(
