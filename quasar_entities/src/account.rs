@@ -1,10 +1,12 @@
 use thiserror::Error;
 
-use async_graphql::ComplexObject;
+use async_graphql::{ComplexObject, Context};
 use base64::{engine::general_purpose, Engine};
 use sea_orm::{entity::prelude::*, Set};
 
 use stellar_node_entities::accounts;
+
+use crate::{ledger, transaction};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, async_graphql::SimpleObject)]
 #[sea_orm(table_name = "accounts")]
@@ -28,12 +30,54 @@ pub struct Model {
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {}
+pub enum Relation {
+    #[sea_orm(
+        has_many = "super::transaction::Entity",
+        to = "super::transaction::Column::AccountId",
+        from = "Column::Id"
+    )]
+    Transaction,
+    #[sea_orm(
+        belongs_to = "super::ledger::Entity",
+        to = "super::ledger::Column::Sequence",
+        from = "Column::LastModified"
+    )]
+    Ledger,
+}
+
+impl Related<super::transaction::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Transaction.def()
+    }
+}
+
+impl Related<super::ledger::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Ledger.def()
+    }
+}
 
 impl ActiveModelBehavior for ActiveModel {}
 
 #[ComplexObject]
-impl Model {}
+impl Model {
+    pub async fn transactions<'ctx>(
+        &self,
+        ctx: &Context<'ctx>,
+    ) -> Result<Vec<transaction::Model>, DbErr> {
+        let database = ctx
+            .data::<DatabaseConnection>()
+            .expect("DatabaseConnection missing from GraphQL context");
+        self.find_related(transaction::Entity).all(database).await
+    }
+
+    pub async fn ledger<'ctx>(&self, ctx: &Context<'ctx>) -> Result<Option<ledger::Model>, DbErr> {
+        let database = ctx
+            .data::<DatabaseConnection>()
+            .expect("DatabaseConnection missing from GraphQL context");
+        self.find_related(ledger::Entity).one(database).await
+    }
+}
 
 #[derive(Error, Debug)]
 pub enum AccountError {
