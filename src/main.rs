@@ -30,6 +30,7 @@ mod logger;
 mod metrics;
 mod schema;
 mod server;
+mod pagination;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
