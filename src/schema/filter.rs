@@ -38,23 +38,15 @@ impl LedgerFilter {
         }
 
         if let Some(sequence) = &self.sequence {
-            match sequence.op {
-                Operator::GreaterThan => {
-                    query = query.filter(ledger::Column::Sequence.gt(sequence.value));
-                }
-                Operator::GreaterThanOrEqual => {
-                    query = query.filter(ledger::Column::Sequence.gte(sequence.value));
-                }
-                Operator::LessThan => {
-                    query = query.filter(ledger::Column::Sequence.lt(sequence.value));
-                }
-                Operator::LessThanOrEqual => {
-                    query = query.filter(ledger::Column::Sequence.lte(sequence.value));
-                }
-                Operator::Equal => {
-                    query = query.filter(ledger::Column::Sequence.eq(sequence.value));
-                }
-            }
+            let filter = match sequence.op {
+                Operator::GreaterThan => ledger::Column::Sequence.gt(sequence.value),
+                Operator::GreaterThanOrEqual => ledger::Column::Sequence.gte(sequence.value),
+                Operator::LessThan => ledger::Column::Sequence.lt(sequence.value),
+                Operator::LessThanOrEqual => ledger::Column::Sequence.lte(sequence.value),
+                Operator::Equal => ledger::Column::Sequence.eq(sequence.value),
+            };
+
+            query = query.filter(filter);
         }
 
         query
@@ -74,95 +66,73 @@ impl AccountFilter {
         let mut query = query;
 
         if let Some(balance) = &self.balance {
-            match balance.op {
-                Operator::GreaterThan => {
-                    query = query.filter(account::Column::Balance.gt(balance.value));
-                }
-                Operator::GreaterThanOrEqual => {
-                    query = query.filter(account::Column::Balance.gte(balance.value));
-                }
-                Operator::LessThan => {
-                    query = query.filter(account::Column::Balance.lt(balance.value));
-                }
-                Operator::LessThanOrEqual => {
-                    query = query.filter(account::Column::Balance.lte(balance.value));
-                }
-                Operator::Equal => {
-                    query = query.filter(account::Column::Balance.eq(balance.value));
-                }
-            }
+            let filter = match balance.op {
+                Operator::GreaterThan => account::Column::Balance.gt(balance.value),
+                Operator::GreaterThanOrEqual => account::Column::Balance.gte(balance.value),
+                Operator::LessThan => account::Column::Balance.lt(balance.value),
+                Operator::LessThanOrEqual => account::Column::Balance.lte(balance.value),
+                Operator::Equal => account::Column::Balance.eq(balance.value),
+            };
+
+            query = query.filter(filter);
         }
 
         if let Some(buying_liabilities) = &self.buying_liabilities {
-            match buying_liabilities.op {
+            let filter = match buying_liabilities.op {
                 Operator::GreaterThan => {
-                    query = query
-                        .filter(account::Column::BuyingLiabilities.gt(buying_liabilities.value));
+                    account::Column::BuyingLiabilities.gt(buying_liabilities.value)
                 }
                 Operator::GreaterThanOrEqual => {
-                    query = query
-                        .filter(account::Column::BuyingLiabilities.gte(buying_liabilities.value));
+                    account::Column::BuyingLiabilities.gte(buying_liabilities.value)
                 }
                 Operator::LessThan => {
-                    query = query
-                        .filter(account::Column::BuyingLiabilities.lt(buying_liabilities.value));
+                    account::Column::BuyingLiabilities.lt(buying_liabilities.value)
                 }
                 Operator::LessThanOrEqual => {
-                    query = query
-                        .filter(account::Column::BuyingLiabilities.lte(buying_liabilities.value));
+                    account::Column::BuyingLiabilities.lte(buying_liabilities.value)
                 }
-                Operator::Equal => {
-                    query = query
-                        .filter(account::Column::BuyingLiabilities.eq(buying_liabilities.value));
-                }
-            }
+                Operator::Equal => account::Column::BuyingLiabilities.eq(buying_liabilities.value),
+            };
+
+            query = query.filter(filter);
         }
 
         if let Some(selling_liabilities) = &self.selling_liabilities {
-            match selling_liabilities.op {
+            let filter = match selling_liabilities.op {
                 Operator::GreaterThan => {
-                    query = query
-                        .filter(account::Column::SellingLiabilities.gt(selling_liabilities.value));
+                    account::Column::SellingLiabilities.gt(selling_liabilities.value)
                 }
                 Operator::GreaterThanOrEqual => {
-                    query = query
-                        .filter(account::Column::SellingLiabilities.gte(selling_liabilities.value));
+                    account::Column::SellingLiabilities.gte(selling_liabilities.value)
                 }
                 Operator::LessThan => {
-                    query = query
-                        .filter(account::Column::SellingLiabilities.lt(selling_liabilities.value));
+                    account::Column::SellingLiabilities.lt(selling_liabilities.value)
                 }
                 Operator::LessThanOrEqual => {
-                    query = query
-                        .filter(account::Column::SellingLiabilities.lte(selling_liabilities.value));
+                    account::Column::SellingLiabilities.lte(selling_liabilities.value)
                 }
                 Operator::Equal => {
-                    query = query
-                        .filter(account::Column::SellingLiabilities.eq(selling_liabilities.value));
+                    account::Column::SellingLiabilities.eq(selling_liabilities.value)
                 }
-            }
+            };
+
+            query = query.filter(filter);
         }
 
         if let Some(sequence_number) = &self.sequence_number {
-            match sequence_number.op {
-                Operator::GreaterThan => {
-                    query = query.filter(account::Column::SequenceNumber.gt(sequence_number.value));
-                }
+            let filter = match sequence_number.op {
+                Operator::GreaterThan => account::Column::SequenceNumber.gt(sequence_number.value),
                 Operator::GreaterThanOrEqual => {
-                    query =
-                        query.filter(account::Column::SequenceNumber.gte(sequence_number.value));
+                    account::Column::SequenceNumber.gte(sequence_number.value)
                 }
-                Operator::LessThan => {
-                    query = query.filter(account::Column::SequenceNumber.lt(sequence_number.value));
-                }
+                Operator::LessThan => account::Column::SequenceNumber.lt(sequence_number.value),
                 Operator::LessThanOrEqual => {
-                    query =
-                        query.filter(account::Column::SequenceNumber.lte(sequence_number.value));
+                    account::Column::SequenceNumber.lte(sequence_number.value)
                 }
-                Operator::Equal => {
-                    query = query.filter(account::Column::SequenceNumber.eq(sequence_number.value));
-                }
-            }
+                Operator::Equal => account::Column::SequenceNumber.eq(sequence_number.value),
+            };
+
+            query = query.filter(filter);
         }
 
         query
@@ -189,23 +159,19 @@ impl ContractFilter {
         }
 
         if let Some(last_modified) = &self.last_modified {
-            match last_modified.op {
-                Operator::GreaterThan => {
-                    query = query.filter(contract::Column::LastModified.gt(last_modified.value));
-                }
+            let filter = match last_modified.op {
+                Operator::GreaterThan => contract::Column::LastModified.gt(last_modified.value),
                 Operator::GreaterThanOrEqual => {
-                    query = query.filter(contract::Column::LastModified.gte(last_modified.value));
+                    contract::Column::LastModified.gte(last_modified.value)
                 }
-                Operator::LessThan => {
-                    query = query.filter(contract::Column::LastModified.lt(last_modified.value));
-                }
+                Operator::LessThan => contract::Column::LastModified.lt(last_modified.value),
                 Operator::LessThanOrEqual => {
-                    query = query.filter(contract::Column::LastModified.lte(last_modified.value));
+                    contract::Column::LastModified.lte(last_modified.value)
                 }
-                Operator::Equal => {
-                    query = query.filter(contract::Column::LastModified.eq(last_modified.value));
-                }
-            }
+                Operator::Equal => contract::Column::LastModified.eq(last_modified.value),
+            };
+
+            query = query.filter(filter);
         }
 
         query
@@ -249,28 +215,23 @@ impl OperationFilter {
         }
 
         if let Some(application_order) = &self.application_order {
-            match application_order.op {
+            let filter = match application_order.op {
                 Operator::GreaterThan => {
-                    query = query
-                        .filter(operation::Column::ApplicationOrder.gt(application_order.value));
+                    operation::Column::ApplicationOrder.gt(application_order.value)
                 }
                 Operator::GreaterThanOrEqual => {
-                    query = query
-                        .filter(operation::Column::ApplicationOrder.gte(application_order.value));
+                    operation::Column::ApplicationOrder.gte(application_order.value)
                 }
                 Operator::LessThan => {
-                    query = query
-                        .filter(operation::Column::ApplicationOrder.lt(application_order.value));
+                    operation::Column::ApplicationOrder.lt(application_order.value)
                 }
                 Operator::LessThanOrEqual => {
-                    query = query
-                        .filter(operation::Column::ApplicationOrder.lte(application_order.value));
+                    operation::Column::ApplicationOrder.lte(application_order.value)
                 }
-                Operator::Equal => {
-                    query = query
-                        .filter(operation::Column::ApplicationOrder.eq(application_order.value));
-                }
-            }
+                Operator::Equal => operation::Column::ApplicationOrder.eq(application_order.value),
+            };
+
+            query = query.filter(filter);
         }
 
         query
@@ -290,103 +251,81 @@ impl TransactionFilter {
         let mut query = query;
 
         if let Some(ledger_sequence) = &self.ledger_sequence {
-            match ledger_sequence.op {
+            let filter = match ledger_sequence.op {
                 Operator::GreaterThan => {
-                    query =
-                        query.filter(transaction::Column::LedgerSequence.gt(ledger_sequence.value));
+                    transaction::Column::LedgerSequence.gt(ledger_sequence.value)
                 }
                 Operator::GreaterThanOrEqual => {
-                    query = query
-                        .filter(transaction::Column::LedgerSequence.gte(ledger_sequence.value));
+                    transaction::Column::LedgerSequence.gte(ledger_sequence.value)
                 }
-                Operator::LessThan => {
-                    query =
-                        query.filter(transaction::Column::LedgerSequence.lt(ledger_sequence.value));
-                }
+                Operator::LessThan => transaction::Column::LedgerSequence.lt(ledger_sequence.value),
                 Operator::LessThanOrEqual => {
-                    query = query
-                        .filter(transaction::Column::LedgerSequence.lte(ledger_sequence.value));
+                    transaction::Column::LedgerSequence.lte(ledger_sequence.value)
                 }
-                Operator::Equal => {
-                    query =
-                        query.filter(transaction::Column::LedgerSequence.eq(ledger_sequence.value));
-                }
-            }
+                Operator::Equal => transaction::Column::LedgerSequence.eq(ledger_sequence.value),
+            };
+
+            query = query.filter(filter);
         }
 
         if let Some(application_order) = &self.application_order {
-            match application_order.op {
+            let filter = match application_order.op {
                 Operator::GreaterThan => {
-                    query = query
-                        .filter(transaction::Column::ApplicationOrder.gt(application_order.value));
+                    transaction::Column::ApplicationOrder.gt(application_order.value)
                 }
                 Operator::GreaterThanOrEqual => {
-                    query = query
-                        .filter(transaction::Column::ApplicationOrder.gte(application_order.value));
+                    transaction::Column::ApplicationOrder.gte(application_order.value)
                 }
                 Operator::LessThan => {
-                    query = query
-                        .filter(transaction::Column::ApplicationOrder.lt(application_order.value));
+                    transaction::Column::ApplicationOrder.lt(application_order.value)
                 }
                 Operator::LessThanOrEqual => {
-                    query = query
-                        .filter(transaction::Column::ApplicationOrder.lte(application_order.value));
+                    transaction::Column::ApplicationOrder.lte(application_order.value)
                 }
                 Operator::Equal => {
-                    query = query
-                        .filter(transaction::Column::ApplicationOrder.eq(application_order.value));
+                    transaction::Column::ApplicationOrder.eq(application_order.value)
                 }
-            }
+            };
+
+            query = query.filter(filter);
         }
 
         if let Some(account_sequence) = &self.account_sequence {
-            match account_sequence.op {
+            let filter = match account_sequence.op {
                 Operator::GreaterThan => {
-                    query = query
-                        .filter(transaction::Column::AccountSequence.gt(account_sequence.value));
+                    transaction::Column::AccountSequence.gt(account_sequence.value)
                 }
                 Operator::GreaterThanOrEqual => {
-                    query = query
-                        .filter(transaction::Column::AccountSequence.gte(account_sequence.value));
+                    transaction::Column::AccountSequence.gte(account_sequence.value)
                 }
                 Operator::LessThan => {
-                    query = query
-                        .filter(transaction::Column::AccountSequence.lt(account_sequence.value));
+                    transaction::Column::AccountSequence.lt(account_sequence.value)
                 }
                 Operator::LessThanOrEqual => {
-                    query = query
-                        .filter(transaction::Column::AccountSequence.lte(account_sequence.value));
+                    transaction::Column::AccountSequence.lte(account_sequence.value)
                 }
-                Operator::Equal => {
-                    query = query
-                        .filter(transaction::Column::AccountSequence.eq(account_sequence.value));
-                }
-            }
+                Operator::Equal => transaction::Column::AccountSequence.eq(account_sequence.value),
+            };
+
+            query = query.filter(filter);
         }
 
         if let Some(operation_count) = &self.operation_count {
-            match operation_count.op {
+            let filter = match operation_count.op {
                 Operator::GreaterThan => {
-                    query =
-                        query.filter(transaction::Column::OperationCount.gt(operation_count.value));
+                    transaction::Column::OperationCount.gt(operation_count.value)
                 }
                 Operator::GreaterThanOrEqual => {
-                    query = query
-                        .filter(transaction::Column::OperationCount.gte(operation_count.value));
+                    transaction::Column::OperationCount.gte(operation_count.value)
                 }
-                Operator::LessThan => {
-                    query =
-                        query.filter(transaction::Column::OperationCount.lt(operation_count.value));
-                }
+                Operator::LessThan => transaction::Column::OperationCount.lt(operation_count.value),
                 Operator::LessThanOrEqual => {
-                    query = query
-                        .filter(transaction::Column::OperationCount.lte(operation_count.value));
+                    transaction::Column::OperationCount.lte(operation_count.value)
                 }
-                Operator::Equal => {
-                    query =
-                        query.filter(transaction::Column::OperationCount.eq(operation_count.value));
-                }
-            }
+                Operator::Equal => transaction::Column::OperationCount.eq(operation_count.value),
+            };
+
+            query = query.filter(filter);
         }
 
         query
