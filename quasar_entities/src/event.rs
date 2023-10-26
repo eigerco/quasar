@@ -1,8 +1,10 @@
-use async_graphql::ComplexObject;
+use async_graphql::{ComplexObject, Context};
 use sea_orm::{entity::prelude::*, ActiveValue::NotSet, Set};
 use serde_json::json;
 use stellar_xdr::{ContractEvent, Error, ScVal, WriteXdr};
 use thiserror::Error;
+
+use crate::{contract, transaction};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, async_graphql::SimpleObject)]
 #[sea_orm(table_name = "events")]
@@ -19,9 +21,6 @@ pub struct Model {
     pub created_at: DateTimeWithTimeZone, 
 }
 
-#[ComplexObject]
-impl Model {}
-
 #[derive(Error, Debug)]
 pub enum EventError {
     #[error("XDR decoding error: {0}")]
@@ -33,7 +32,55 @@ pub enum EventError {
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {}
+pub enum Relation {
+    #[sea_orm(
+        belongs_to = "super::transaction::Entity",
+        from = "Column::TransactionId",
+        to = "super::transaction::Column::Id"
+    )]
+    Transaction,
+    #[sea_orm(
+        belongs_to = "super::contract::Entity",
+        from = "Column::ContractId",
+        to = "super::contract::Column::Address"
+    )]
+    Contract,
+}
+
+impl Related<super::transaction::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Transaction.def()
+    }
+}
+
+impl Related<super::contract::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Contract.def()
+    }
+}
+
+#[ComplexObject]
+impl Model {
+    pub async fn contract<'ctx>(
+        &self,
+        ctx: &Context<'ctx>,
+    ) -> Result<Option<super::contract::Model>, DbErr> {
+        let database = ctx
+            .data::<DatabaseConnection>()
+            .expect("DatabaseConnection missing from GraphQL context");
+        self.find_related(contract::Entity).one(database).await
+    }
+
+    pub async fn transaction<'ctx>(
+        &self,
+        ctx: &Context<'ctx>,
+    ) -> Result<Option<super::transaction::Model>, DbErr> {
+        let database = ctx
+            .data::<DatabaseConnection>()
+            .expect("DatabaseConnection missing from GraphQL context");
+        self.find_related(transaction::Entity).one(database).await
+    }
+}
 
 impl ActiveModelBehavior for ActiveModel {}
 

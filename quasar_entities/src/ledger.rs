@@ -1,8 +1,9 @@
-use async_graphql::ComplexObject;
-use sea_orm::{entity::prelude::*, Set, ActiveValue::NotSet};
-
+use async_graphql::{ComplexObject, Context};
+use sea_orm::{entity::prelude::*, ActiveValue::NotSet, Set};
 use stellar_node_entities::ledgerheaders;
 use stellar_xdr::{Error, LedgerHeader, ReadXdr};
+
+use crate::account;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, async_graphql::SimpleObject)]
 #[sea_orm(table_name = "ledgers")]
@@ -21,16 +22,36 @@ pub struct Model {
     pub base_fee: i32,
     pub base_reserve: i32,
     pub max_tx_set_size: i32,
-    pub created_at: DateTimeWithTimeZone, 
+    pub created_at: DateTimeWithTimeZone,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {}
+pub enum Relation {
+    #[sea_orm(
+        has_many = "super::account::Entity",
+        to = "super::account::Column::LastModified",
+        from = "Column::Sequence"
+    )]
+    Account,
+}
+
+impl Related<super::account::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Account.def()
+    }
+}
 
 impl ActiveModelBehavior for ActiveModel {}
 
 #[ComplexObject]
-impl Model {}
+impl Model {
+    pub async fn accounts<'ctx>(&self, ctx: &Context<'ctx>) -> Result<Vec<account::Model>, DbErr> {
+        let database = ctx
+            .data::<DatabaseConnection>()
+            .expect("DatabaseConnection missing from GraphQL context");
+        self.find_related(account::Entity).all(database).await
+    }
+}
 
 impl TryFrom<ledgerheaders::Model> for ActiveModel {
     type Error = Error;
@@ -50,8 +71,7 @@ impl TryFrom<ledgerheaders::Model> for ActiveModel {
             base_fee: Set(ledgerheader_data.base_fee as i32),
             base_reserve: Set(ledgerheader_data.base_reserve as i32),
             max_tx_set_size: Set(ledgerheader_data.max_tx_set_size as i32),
-            created_at: NotSet
-
+            created_at: NotSet,
         })
     }
 }

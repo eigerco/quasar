@@ -1,7 +1,9 @@
-use async_graphql::ComplexObject;
+use async_graphql::{ComplexObject, Context};
 use sea_orm::{entity::prelude::*, ActiveValue::NotSet, Set};
 use stellar_strkey::ed25519::PublicKey;
 use stellar_xdr::{Error, TransactionEnvelope};
+
+use crate::{account, event, operation};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, async_graphql::SimpleObject)]
 #[sea_orm(table_name = "transactions")]
@@ -19,12 +21,76 @@ pub struct Model {
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {}
+pub enum Relation {
+    #[sea_orm(
+        has_many = "super::operation::Entity",
+        to = "super::operation::Column::TransactionId",
+        from = "Column::Id"
+    )]
+    Operation,
+    #[sea_orm(
+        belongs_to = "super::account::Entity",
+        from = "Column::AccountId",
+        to = "super::account::Column::Id"
+    )]
+    Account,
+    #[sea_orm(
+        has_many = "super::event::Entity",
+        to = "super::event::Column::TransactionId",
+        from = "Column::Id"
+    )]
+    Event,
+}
+
+impl Related<super::operation::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Operation.def()
+    }
+}
+
+impl Related<super::account::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Account.def()
+    }
+}
+
+impl Related<super::event::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Event.def()
+    }
+}
 
 impl ActiveModelBehavior for ActiveModel {}
 
 #[ComplexObject]
-impl Model {}
+impl Model {
+    pub async fn account<'ctx>(
+        &self,
+        ctx: &Context<'ctx>,
+    ) -> Result<Option<super::account::Model>, DbErr> {
+        let database = ctx
+            .data::<DatabaseConnection>()
+            .expect("DatabaseConnection missing from GraphQL context");
+        self.find_related(account::Entity).one(database).await
+    }
+
+    pub async fn operations<'ctx>(
+        &self,
+        ctx: &Context<'ctx>,
+    ) -> Result<Vec<operation::Model>, DbErr> {
+        let database = ctx
+            .data::<DatabaseConnection>()
+            .expect("DatabaseConnection missing from GraphQL context");
+        self.find_related(operation::Entity).all(database).await
+    }
+
+    pub async fn events<'ctx>(&self, ctx: &Context<'ctx>) -> Result<Vec<event::Model>, DbErr> {
+        let database = ctx
+            .data::<DatabaseConnection>()
+            .expect("DatabaseConnection missing from GraphQL context");
+        self.find_related(event::Entity).all(database).await
+    }
+}
 
 impl TryFrom<TransactionEnvelope> for ActiveModel {
     type Error = Error;
