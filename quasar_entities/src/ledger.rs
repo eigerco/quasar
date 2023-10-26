@@ -1,8 +1,10 @@
-use async_graphql::ComplexObject;
+use async_graphql::{ComplexObject, Context};
 use sea_orm::{entity::prelude::*, Set};
 
 use stellar_node_entities::ledgerheaders;
 use stellar_xdr::{Error, LedgerHeader, ReadXdr};
+
+use crate::account;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, async_graphql::SimpleObject)]
 #[sea_orm(table_name = "ledgers")]
@@ -24,12 +26,32 @@ pub struct Model {
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {}
+pub enum Relation {
+    #[sea_orm(
+        has_many = "super::account::Entity",
+        to = "super::account::Column::LastModified",
+        from = "Column::Sequence"
+    )]
+    Account,
+}
+
+impl Related<super::account::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Account.def()
+    }
+}
 
 impl ActiveModelBehavior for ActiveModel {}
 
 #[ComplexObject]
-impl Model {}
+impl Model {
+    pub async fn accounts<'ctx>(&self, ctx: &Context<'ctx>) -> Result<Vec<account::Model>, DbErr> {
+        let database = ctx
+            .data::<DatabaseConnection>()
+            .expect("DatabaseConnection missing from GraphQL context");
+        self.find_related(account::Entity).all(database).await
+    }
+}
 
 impl TryFrom<ledgerheaders::Model> for ActiveModel {
     type Error = Error;

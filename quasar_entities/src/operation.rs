@@ -1,4 +1,5 @@
-use async_graphql::ComplexObject;
+use crate::transaction;
+use async_graphql::{ComplexObject, Context};
 use sea_orm::{entity::prelude::*, ActiveValue::NotSet, Set};
 use stellar_xdr::{Error, Operation};
 
@@ -15,12 +16,35 @@ pub struct Model {
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {}
+pub enum Relation {
+    #[sea_orm(
+        belongs_to = "super::transaction::Entity",
+        from = "Column::TransactionId",
+        to = "super::transaction::Column::Id"
+    )]
+    Transaction,
+}
+
+impl Related<super::transaction::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Transaction.def()
+    }
+}
 
 impl ActiveModelBehavior for ActiveModel {}
 
 #[ComplexObject]
-impl Model {}
+impl Model {
+    pub async fn transaction<'ctx>(
+        &self,
+        ctx: &Context<'ctx>,
+    ) -> Result<Option<super::transaction::Model>, DbErr> {
+        let database = ctx
+            .data::<DatabaseConnection>()
+            .expect("DatabaseConnection missing from GraphQL context");
+        self.find_related(transaction::Entity).one(database).await
+    }
+}
 
 impl TryFrom<Operation> for ActiveModel {
     type Error = Error;

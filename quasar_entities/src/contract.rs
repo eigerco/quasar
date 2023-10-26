@@ -1,8 +1,10 @@
-use async_graphql::ComplexObject;
+use async_graphql::{ComplexObject, Context};
 use sea_orm::entity::prelude::*;
 use sea_orm::Set;
 use stellar_node_entities::contractdata;
 use stellar_xdr::{Error, LedgerEntry, ReadXdr};
+
+use crate::event;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, async_graphql::SimpleObject)]
 #[sea_orm(table_name = "contracts")]
@@ -18,11 +20,31 @@ pub struct Model {
     pub last_modified: i32,
 }
 
-#[ComplexObject]
-impl Model {}
-
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {}
+pub enum Relation {
+    #[sea_orm(
+        has_many = "super::event::Entity",
+        to = "super::event::Column::TransactionId",
+        from = "Column::Address"
+    )]
+    Event,
+}
+
+impl Related<super::event::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Event.def()
+    }
+}
+
+#[ComplexObject]
+impl Model {
+    pub async fn events<'ctx>(&self, ctx: &Context<'ctx>) -> Result<Vec<event::Model>, DbErr> {
+        let database = ctx
+            .data::<DatabaseConnection>()
+            .expect("DatabaseConnection missing from GraphQL context");
+        self.find_related(event::Entity).all(database).await
+    }
+}
 
 impl ActiveModelBehavior for ActiveModel {}
 
