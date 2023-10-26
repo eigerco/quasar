@@ -2,15 +2,15 @@ name: Build
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
     # Publish semver tags as releases.
-    tags: [ 'v*.*.*' ]
+    tags: ["v*.*.*"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
   build:
-    timeout-minutes: 10 
+    timeout-minutes: 10
     permissions:
       contents: read
     runs-on: ubuntu-latest
@@ -54,3 +54,8 @@ jobs:
         with:
           command: clippy
           args: --all-features
+      - name: Check formatting
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check

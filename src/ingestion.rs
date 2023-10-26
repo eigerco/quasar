@@ -13,10 +13,10 @@ use crate::{
 
 mod accounts;
 mod contracts;
+mod events;
 mod ledgers;
 mod operations;
 mod transactions;
-mod events;
 
 #[derive(Error, Debug)]
 pub enum IngestionError {

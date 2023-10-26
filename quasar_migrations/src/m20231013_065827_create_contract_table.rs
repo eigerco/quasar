@@ -25,11 +25,7 @@ impl MigrationTrait for Migration {
                     )
                     .col(ColumnDef::new(Contract::Key).string().not_null())
                     .col(ColumnDef::new(Contract::Type).string().not_null())
-                    .col(
-                        ColumnDef::new(Contract::LastModified)
-                            .integer()
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(Contract::LastModified).integer().not_null())
                     .to_owned(),
             )
             .await
