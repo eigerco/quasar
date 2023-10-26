@@ -2,7 +2,7 @@ use thiserror::Error;
 
 use async_graphql::ComplexObject;
 use base64::{engine::general_purpose, Engine};
-use sea_orm::{entity::prelude::*, Set};
+use sea_orm::{entity::prelude::*, Set, ActiveValue::NotSet};
 
 use stellar_node_entities::accounts;
 
@@ -25,6 +25,7 @@ pub struct Model {
     pub threshold_medium: i16,
     pub threshold_high: i16,
     pub last_modified: i32,
+    pub created_at: DateTimeWithTimeZone, 
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -81,6 +82,8 @@ impl TryFrom<accounts::Model> for ActiveModel {
             threshold_medium: Set(*threshold_medium as i16),
             threshold_high: Set(*threshold_high as i16),
             last_modified: Set(accounts.lastmodified),
+            created_at: NotSet
+
         })
     }
 }

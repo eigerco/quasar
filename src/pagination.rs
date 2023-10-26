@@ -4,7 +4,7 @@ use async_graphql::{
     connection::{self, Connection, ConnectionNameType, CursorType, EdgeNameType, EmptyFields},
     ErrorExtensions, InputObject, OutputType,
 };
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, FixedOffset};
 
 #[derive(Default, InputObject)]
 pub struct ConnectionParams {
@@ -41,7 +41,7 @@ where
     ConnectionName: ConnectionNameType,
     EdgeName: EdgeNameType,
 {
-    let params = params.unwrap_or(ConnectionParams::default());
+    let params = params.unwrap_or_default();
     connection::query(
         params.after,
         params.before,
@@ -71,24 +71,24 @@ where
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct DateTimeCursor(DateTime<Utc>);
+pub struct DateTimeCursor(DateTime<FixedOffset>);
 
 impl Deref for DateTimeCursor {
-    type Target = DateTime<Utc>;
+    type Target = DateTime<FixedOffset>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl From<DateTimeCursor> for DateTime<Utc> {
+impl From<DateTimeCursor> for DateTime<FixedOffset> {
     fn from(cursor: DateTimeCursor) -> Self {
         cursor.0
     }
 }
 
-impl From<DateTime<Utc>> for DateTimeCursor {
-    fn from(dt: DateTime<Utc>) -> Self {
+impl From<DateTime<FixedOffset>> for DateTimeCursor {
+    fn from(dt: DateTime<FixedOffset>) -> Self {
         Self(dt)
     }
 }
@@ -97,7 +97,7 @@ impl CursorType for DateTimeCursor {
     type Error = chrono::format::ParseError;
 
     fn decode_cursor(s: &str) -> std::result::Result<Self, Self::Error> {
-        DateTime::parse_from_rfc3339(s).map(|dt| DateTimeCursor(dt.with_timezone(&Utc)))
+        DateTime::parse_from_rfc3339(s).map(Self)
     }
 
     fn encode_cursor(&self) -> String {

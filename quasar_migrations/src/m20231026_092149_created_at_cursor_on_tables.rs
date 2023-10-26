@@ -21,8 +21,8 @@ impl MigrationTrait for Migration {
                     Table::alter()
                         .table(table)
                         .add_column(
-                            ColumnDef::new(CreatedAtIden::CreateAt)
-                                .timestamp()
+                            ColumnDef::new(CreatedAtIden::CreatedAt)
+                                .timestamp_with_time_zone()
                                 .default(Expr::current_timestamp())
                                 .not_null(),
                         )
@@ -48,7 +48,7 @@ impl MigrationTrait for Migration {
                 .alter_table(
                     Table::alter()
                         .table(table)
-                        .drop_column(CreatedAtIden::CreateAt)
+                        .drop_column(CreatedAtIden::CreatedAt)
                         .take(),
                 )
                 .await?;
@@ -59,7 +59,7 @@ impl MigrationTrait for Migration {
 
 #[derive(DeriveIden)]
 enum CreatedAtIden {
-    CreateAt,
+    CreatedAt,
     Accounts,
     Contracts,
     Transactions,

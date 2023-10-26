@@ -12,6 +12,7 @@ pub struct Model {
     transaction_id: String,
     application_order: i32,
     r#type: String,
+    pub created_at: DateTimeWithTimeZone, 
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -31,6 +32,7 @@ impl TryFrom<Operation> for ActiveModel {
             transaction_id: NotSet,
             application_order: NotSet,
             r#type: Set(operation.body.name().to_string()),
+            created_at: NotSet
         })
     }
 }

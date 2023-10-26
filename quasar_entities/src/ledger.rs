@@ -1,5 +1,5 @@
 use async_graphql::ComplexObject;
-use sea_orm::{entity::prelude::*, Set};
+use sea_orm::{entity::prelude::*, Set, ActiveValue::NotSet};
 
 use stellar_node_entities::ledgerheaders;
 use stellar_xdr::{Error, LedgerHeader, ReadXdr};
@@ -21,6 +21,7 @@ pub struct Model {
     pub base_fee: i32,
     pub base_reserve: i32,
     pub max_tx_set_size: i32,
+    pub created_at: DateTimeWithTimeZone, 
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -49,6 +50,8 @@ impl TryFrom<ledgerheaders::Model> for ActiveModel {
             base_fee: Set(ledgerheader_data.base_fee as i32),
             base_reserve: Set(ledgerheader_data.base_reserve as i32),
             max_tx_set_size: Set(ledgerheader_data.max_tx_set_size as i32),
+            created_at: NotSet
+
         })
     }
 }
