@@ -44,5 +44,5 @@ enum Event {
     ContractId,
     TransactionId,
     Value,
-    Type
+    Type,
 }
