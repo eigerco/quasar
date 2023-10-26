@@ -18,7 +18,7 @@ pub struct Model {
     pub transaction_id: String,
     pub value: Json,
     pub r#type: String,
-    pub created_at: DateTimeWithTimeZone, 
+    pub created_at: DateTimeWithTimeZone,
 }
 
 #[derive(Error, Debug)]
@@ -109,8 +109,7 @@ impl TryFrom<ContractEvent> for ActiveModel {
             transaction_id: NotSet,
             value: Set(value),
             r#type: Set(event.type_.to_string()),
-            created_at: NotSet
-
+            created_at: NotSet,
         })
     }
 }

@@ -28,9 +28,9 @@ mod databases;
 mod ingestion;
 mod logger;
 mod metrics;
+mod pagination;
 mod schema;
 mod server;
-mod pagination;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
