@@ -2,10 +2,10 @@ pub use sea_orm_migration::prelude::*;
 
 mod m20220101_000001_create_ledgers;
 mod m20231012_071003_create_accounts;
-mod m20231018_125257_create_events_table;
 mod m20231013_065827_create_contract_table;
 mod m20231016_094252_create_transactions;
 mod m20231016_094302_create_operations;
+mod m20231018_125257_create_events_table;
 
 pub struct Migrator;
 
