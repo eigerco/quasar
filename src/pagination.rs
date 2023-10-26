@@ -1,9 +1,10 @@
-use std::{fmt::Display, future::Future};
+use std::{fmt::Display, future::Future, ops::Deref};
 
 use async_graphql::{
     connection::{self, Connection, ConnectionNameType, CursorType, EdgeNameType, EmptyFields},
     ErrorExtensions, InputObject, OutputType,
 };
+use chrono::{DateTime, Utc};
 
 #[derive(Default, InputObject)]
 pub struct ConnectionParams {
@@ -67,4 +68,39 @@ where
         },
     )
     .await
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct DateTimeCursor(DateTime<Utc>);
+
+impl Deref for DateTimeCursor {
+    type Target = DateTime<Utc>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<DateTimeCursor> for DateTime<Utc> {
+    fn from(cursor: DateTimeCursor) -> Self {
+        cursor.0
+    }
+}
+
+impl From<DateTime<Utc>> for DateTimeCursor {
+    fn from(dt: DateTime<Utc>) -> Self {
+        Self(dt)
+    }
+}
+
+impl CursorType for DateTimeCursor {
+    type Error = chrono::format::ParseError;
+
+    fn decode_cursor(s: &str) -> std::result::Result<Self, Self::Error> {
+        DateTime::parse_from_rfc3339(s).map(|dt| DateTimeCursor(dt.with_timezone(&Utc)))
+    }
+
+    fn encode_cursor(&self) -> String {
+        self.0.to_rfc3339()
+    }
 }
