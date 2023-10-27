@@ -1,6 +1,6 @@
 use async_graphql::{ComplexObject, Context};
-use sea_orm::entity::prelude::*;
 use sea_orm::Set;
+use sea_orm::{entity::prelude::*, ActiveValue::NotSet};
 use stellar_node_entities::contractdata;
 use stellar_xdr::{Error, LedgerEntry, ReadXdr};
 
@@ -18,6 +18,7 @@ pub struct Model {
     pub key: String,
     pub r#type: String,
     pub last_modified: i32,
+    pub created_at: DateTimeWithTimeZone,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -68,6 +69,7 @@ impl TryFrom<contractdata::Model> for ActiveModel {
             hash: Set(model.contractid.clone()),
             address: Set(address),
             last_modified: Set(model.lastmodified),
+            created_at: NotSet,
         })
     }
 }

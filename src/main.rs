@@ -28,6 +28,7 @@ mod databases;
 mod ingestion;
 mod logger;
 mod metrics;
+mod pagination;
 mod schema;
 mod server;
 

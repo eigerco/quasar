@@ -21,6 +21,7 @@ async-graphql = { workspace = true, features = ["playground"] }
 axum = "0.6"
 axum-prometheus = "0.4.0"
 clap = { version = "4.4.2", features = ["derive"] }
+chrono = "0.4.1"
 config = "0.13.3"
 log = "0.4.20"
 log4rs = "1.2.0"

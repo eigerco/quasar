@@ -17,6 +17,7 @@ pub struct Model {
     pub account_id: String,
     pub account_sequence: i64,
     pub operation_count: i32,
+    pub created_at: DateTimeWithTimeZone,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -138,6 +139,7 @@ impl TryFrom<TransactionEnvelope> for ActiveModel {
             account_id: Set(account_str_key.to_string()),
             account_sequence: Set(seq_num),
             operation_count: Set(operation_count),
+            created_at: NotSet,
         })
     }
 }
