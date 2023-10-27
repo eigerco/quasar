@@ -49,7 +49,9 @@ where
         params.last,
         |after, before, first, last| async move {
             if before.is_some() && last.is_some() {
-                panic!("Cannot query 'before' with 'last'");
+                return Err::<_, async_graphql::Error>(async_graphql::Error::new(
+                    "Cannot query 'before' with 'last'",
+                ));
             }
 
             let nodes: Vec<Node> = query(after, before, first.map(|first| first as u64))
