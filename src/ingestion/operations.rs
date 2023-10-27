@@ -4,12 +4,13 @@ use stellar_xdr::{Operation, TransactionEnvelope};
 
 use crate::databases::QuasarDatabase;
 
-use super::IngestionError;
+use super::{IngestionError, IngestionMetrics};
 
 pub(super) async fn ingest_operations(
     db: &QuasarDatabase,
     transaction_id: &str,
     transaction_tx_body: TransactionEnvelope,
+    metrics: &IngestionMetrics,
 ) -> Result<(), IngestionError> {
     let operations: Vec<Operation> = match transaction_tx_body {
         TransactionEnvelope::TxV0(envelope) => envelope.tx.operations.to_vec(),
@@ -24,6 +25,8 @@ pub(super) async fn ingest_operations(
         operation.application_order = Set(index as i32 + 1);
 
         operation.insert(db.as_inner()).await?;
+
+        metrics.operations.inc();
     }
 
     Ok(())

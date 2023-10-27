@@ -1,11 +1,21 @@
-use std::time::Duration;
+use std::{collections::HashMap, time::Duration};
 
+use log::error;
 use prometheus::{IntGauge, Registry};
-use quasar_entities::ledger;
+use quasar_entities::prelude::*;
 use sea_orm::{EntityTrait, PaginatorTrait};
 use tokio::time;
 
 use crate::databases::QuasarDatabase;
+
+const GAUGES: [&str; 6] = [
+    "ledgers",
+    "accounts",
+    "contracts",
+    "transactions",
+    "operations",
+    "events",
+];
 
 pub(super) fn start_database_metrics(database: QuasarDatabase, registry: Registry, interval: u64) {
     tokio::spawn(async move {
@@ -14,31 +24,56 @@ pub(super) fn start_database_metrics(database: QuasarDatabase, registry: Registr
 }
 
 async fn database_metrics(database: QuasarDatabase, registry: Registry, interval: u64) {
-    let mut ledger_gauge = setup_metrics(registry);
+    let mut gauges = setup_metrics(registry);
     let mut interval = time::interval(Duration::from_secs(interval));
 
     loop {
-        interval.tick().await;
+        count_entities(&database, &mut gauges).await;
 
-        count_entities(&database, &mut ledger_gauge).await;
+        interval.tick().await;
     }
 }
 
-fn setup_metrics(
-    registry: Registry,
-) -> prometheus::core::GenericGauge<prometheus::core::AtomicI64> {
-    let ledger_gauge = IntGauge::new("all_ledgers", "Number of ledgers in the database").unwrap();
-    registry
-        .register(Box::new(ledger_gauge.clone()))
-        .expect("Failed to register counter");
-    ledger_gauge
+fn setup_metrics(registry: Registry) -> HashMap<String, IntGauge> {
+    let mut gauges = HashMap::new();
+
+    for gauge_name in GAUGES {
+        let gauge = IntGauge::new(
+            gauge_name,
+            format!("Number of {} in the database", gauge_name),
+        )
+        .unwrap();
+        registry
+            .register(Box::new(gauge.clone()))
+            .expect("Failed to register counter");
+
+        gauges.insert(gauge_name.to_string(), gauge);
+    }
+
+    gauges
 }
 
-async fn count_entities(database: &QuasarDatabase, ledger_gauge: &mut IntGauge) {
-    let ledger_count = ledger::Entity::find()
-        .count(database.as_inner())
-        .await
-        .expect("Failed to count ledgers");
+async fn count_entities(db: &QuasarDatabase, gauges: &mut HashMap<String, IntGauge>) {
+    let db = db.as_inner();
 
-    ledger_gauge.set(ledger_count as i64);
+    for (gauge_name, gauge) in gauges {
+        let query = match gauge_name.as_str() {
+            "ledgers" => Ledger::find().count(db),
+            "accounts" => Account::find().count(db),
+            "contracts" => Contract::find().count(db),
+            "transactions" => Transaction::find().count(db),
+            "operations" => Operation::find().count(db),
+            "events" => Event::find().count(db),
+            _ => panic!("Unknown gauge name"),
+        };
+
+        let result = query.await;
+
+        if let Ok(count) = result {
+            gauge.set(count as i64);
+            continue;
+        } else {
+            error!("Failed to count entities: {:?}", result);
+        }
+    }
 }
