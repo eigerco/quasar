@@ -10,4 +10,4 @@ depth_limit = 16
 complexity_limit = 64
 
 [metrics]
-database_polling_interval = 5
+database_polling_interval = 60

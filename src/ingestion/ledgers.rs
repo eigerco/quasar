@@ -1,7 +1,6 @@
 use crate::databases::{NodeDatabase, QuasarDatabase};
 use crate::ingestion::contracts::ingest_contracts;
 use crate::ingestion::{accounts::ingest_accounts, transactions::ingest_transactions};
-use crate::metrics::IngestionMetrics;
 use log::info;
 use quasar_entities::{ledger, prelude::Ledger};
 use sea_orm::{ActiveModelTrait, ColumnTrait, QueryFilter};
@@ -9,7 +8,7 @@ use sea_orm::{DatabaseConnection, DbErr, EntityTrait, QueryOrder};
 use stellar_node_entities::ledgerheaders;
 use stellar_node_entities::prelude::Ledgerheaders;
 
-use super::IngestionError;
+use super::{IngestionError, IngestionMetrics};
 
 pub enum IngestionNeeded {
     Yes {
@@ -71,7 +70,7 @@ pub(super) async fn ingest_ledgers(
             handle_new_ledger(next_ledger, quasar_database, node_database, metrics).await?;
         last_ingested_ledger_sequence = Some(ingested_sequence);
 
-        metrics.ingested_ledgers.inc();
+        metrics.ledgers.inc();
     }
 
     Ok(())
@@ -89,8 +88,8 @@ async fn handle_new_ledger(
     info!("Ingesting ledger {} and associated data", sequence);
 
     ingest_ledger(ledger, quasar_database).await?;
-    ingest_accounts(node_database, quasar_database, sequence).await?;
-    ingest_transactions(node_database, quasar_database, sequence).await?;
+    ingest_accounts(node_database, quasar_database, sequence, metrics).await?;
+    ingest_transactions(node_database, quasar_database, sequence, metrics).await?;
     ingest_contracts(node_database, quasar_database, metrics).await?;
 
     Ok(sequence)

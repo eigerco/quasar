@@ -1,6 +1,6 @@
 use crate::databases::{NodeDatabase, QuasarDatabase};
 
-use super::IngestionError;
+use super::{IngestionError, IngestionMetrics};
 use log::info;
 use quasar_entities::account;
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter};
@@ -10,6 +10,7 @@ pub(super) async fn ingest_accounts(
     node_database: &NodeDatabase,
     quasar_database: &QuasarDatabase,
     ledger_sequence: i32,
+    metrics: &IngestionMetrics,
 ) -> Result<(), IngestionError> {
     // Query all accounts with lastmodified = ledger_sequence
     let updated_accounts = Accounts::find()
@@ -22,6 +23,8 @@ pub(super) async fn ingest_accounts(
     // Ingest all updated accounts
     for account in updated_accounts {
         ingest_account(quasar_database, account).await?;
+
+        metrics.accounts.inc();
     }
 
     info!("Ingested {} updated accounts", count);

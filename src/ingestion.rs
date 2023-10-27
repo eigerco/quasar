@@ -8,7 +8,6 @@ use crate::{
     configuration::Ingestion,
     databases::{NodeDatabase, QuasarDatabase},
     ingestion::ledgers::{ingest_ledgers, new_ledgers_available, IngestionNeeded},
-    metrics::IngestionMetrics,
 };
 
 mod accounts;
@@ -30,6 +29,14 @@ pub enum IngestionError {
     AccountError(#[from] AccountError),
     #[error("Event error: {0}")]
     EventError(#[from] EventError),
+}
+pub(super) struct IngestionMetrics {
+    pub ledgers: IntCounter,
+    pub accounts: IntCounter,
+    pub contracts: IntCounter,
+    pub transactions: IntCounter,
+    pub operations: IntCounter,
+    pub events: IntCounter,
 }
 
 pub(super) async fn ingest(
@@ -75,20 +82,34 @@ pub async fn sleep(ingestion: &Ingestion) {
 }
 
 fn setup_ingestion_metrics(metrics: &Registry) -> IngestionMetrics {
-    let ingested_ledgers =
-        IntCounter::new("ingested_ledgers", "Number of ingested ledgers").unwrap();
-    metrics
-        .register(Box::new(ingested_ledgers.clone()))
-        .expect("Failed to register counter");
-
-    let ingested_contracts =
-        IntCounter::new("ingested_contracts", "Number of ingested contracts").unwrap();
-    metrics
-        .register(Box::new(ingested_contracts.clone()))
-        .expect("Failed to register counter");
+    let ledgers = create_ingestion_counter(metrics, "ledgers");
+    let contracts = create_ingestion_counter(metrics, "contracts");
+    let accounts = create_ingestion_counter(metrics, "accounts");
+    let transactions = create_ingestion_counter(metrics, "transactions");
+    let operations = create_ingestion_counter(metrics, "operations");
+    let events = create_ingestion_counter(metrics, "events");
 
     IngestionMetrics {
-        ingested_ledgers,
-        ingested_contracts,
+        ledgers,
+        contracts,
+        accounts,
+        transactions,
+        operations,
+        events,
     }
+}
+
+fn create_ingestion_counter(
+    metrics: &Registry,
+    name: &str,
+) -> prometheus::core::GenericCounter<prometheus::core::AtomicU64> {
+    let counter = IntCounter::new(
+        format!("ingested_{}", name),
+        format!("Number of ingested {}", name),
+    )
+    .unwrap();
+    metrics
+        .register(Box::new(counter.clone()))
+        .expect("Failed to register counter");
+    counter
 }

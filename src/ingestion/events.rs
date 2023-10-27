@@ -2,12 +2,13 @@ use quasar_entities::event;
 use sea_orm::{ActiveModelTrait, DatabaseConnection, Set};
 use stellar_xdr::TransactionMeta;
 
-use super::IngestionError;
+use super::{IngestionError, IngestionMetrics};
 
-pub async fn ingest_events(
+pub(super) async fn ingest_events(
     db: &DatabaseConnection,
     transaction_meta: TransactionMeta,
     transaction_id: &str,
+    metrics: &IngestionMetrics,
 ) -> Result<(), IngestionError> {
     match transaction_meta {
         TransactionMeta::V3(v3) => match v3.soroban_meta {
@@ -21,6 +22,8 @@ pub async fn ingest_events(
                         event::ActiveModel::try_from(event.clone())?;
                     event.transaction_id = Set(transaction_id.to_owned());
                     event.insert(db).await?;
+
+                    metrics.events.inc();
                 }
             }
         },

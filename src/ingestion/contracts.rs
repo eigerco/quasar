@@ -8,8 +8,9 @@ use stellar_node_entities::{contractdata, prelude::Contractdata};
 use crate::{
     databases::{NodeDatabase, QuasarDatabase},
     ingestion::IngestionError,
-    metrics::IngestionMetrics,
 };
+
+use super::IngestionMetrics;
 
 pub(super) async fn ingest_contracts(
     node_database: &NodeDatabase,
@@ -30,7 +31,7 @@ pub(super) async fn ingest_contracts(
                 let ingested_sequence = ingest_contract(next_contract, quasar_database).await?;
                 last_ingested = Some(ingested_sequence);
 
-                metrics.ingested_contracts.inc();
+                metrics.contracts.inc();
             }
         }
         IngestNextContract::No => {}
