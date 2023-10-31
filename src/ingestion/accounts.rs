@@ -2,8 +2,9 @@ use crate::databases::{NodeDatabase, QuasarDatabase};
 
 use super::{IngestionError, IngestionMetrics};
 use log::info;
+use migration::OnConflict;
 use quasar_entities::account;
-use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter};
+use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 use stellar_node_entities::{accounts, prelude::Accounts};
 
 pub(super) async fn ingest_accounts(
@@ -38,7 +39,13 @@ pub(super) async fn ingest_account(
 ) -> Result<(), IngestionError> {
     let account: account::ActiveModel = account::ActiveModel::try_from(account)?;
 
-    account.insert(db.as_inner()).await?;
-
+    account::Entity::insert(account)
+        .on_conflict(
+            OnConflict::column(account::Column::Id)
+                .do_nothing()
+                .to_owned(),
+        )
+        .exec(db.as_inner())
+        .await?;
     Ok(())
 }

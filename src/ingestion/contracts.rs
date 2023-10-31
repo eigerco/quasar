@@ -1,8 +1,7 @@
 use log::{debug, info};
+use migration::OnConflict;
 use quasar_entities::contract;
-use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, QueryFilter, QueryOrder,
-};
+use sea_orm::{ColumnTrait, DatabaseConnection, DbErr, EntityTrait, QueryFilter, QueryOrder};
 use stellar_node_entities::{contractdata, prelude::Contractdata};
 
 use crate::{
@@ -47,7 +46,14 @@ async fn ingest_contract(
     let sequence = contract.lastmodified;
     info!("Ingesting contract since {}", sequence);
     let contract: contract::ActiveModel = contract::ActiveModel::try_from(contract).unwrap();
-    contract.insert(&**database).await?;
+    contract::Entity::insert(contract)
+        .on_conflict(
+            OnConflict::column(contract::Column::Address)
+                .do_nothing()
+                .to_owned(),
+        )
+        .exec(&**database)
+        .await?;
     Ok(sequence)
 }
 
