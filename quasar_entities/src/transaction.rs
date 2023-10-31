@@ -1,9 +1,12 @@
-use async_graphql::{ComplexObject, Context};
-use sea_orm::{entity::prelude::*, ActiveValue::NotSet, Set};
+use std::collections::HashMap;
+use std::sync::Arc;
+
+use async_graphql::{dataloader::Loader, ComplexObject, Context};
+use sea_orm::{entity::prelude::*, ActiveValue::NotSet, Condition, Set};
 use stellar_strkey::ed25519::PublicKey;
 use stellar_xdr::{Error, TransactionEnvelope};
 
-use crate::{account, event, operation};
+use crate::{account, event, operation, QuasarDataLoader};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, async_graphql::SimpleObject)]
 #[sea_orm(table_name = "transactions")]
@@ -141,5 +144,34 @@ impl TryFrom<TransactionEnvelope> for ActiveModel {
             operation_count: Set(operation_count),
             created_at: NotSet,
         })
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct TransactionId(String);
+
+#[async_trait::async_trait]
+impl Loader<TransactionId> for QuasarDataLoader {
+    type Value = Model;
+    type Error = Arc<DbErr>;
+
+    async fn load(
+        &self,
+        keys: &[TransactionId],
+    ) -> Result<HashMap<TransactionId, Self::Value>, Self::Error> {
+        let mut condition = Condition::any();
+
+        for TransactionId(id) in keys {
+            condition = condition.add(Column::Id.eq(id.clone()));
+        }
+        let operations = Entity::find()
+            .filter(condition)
+            .all(&self.pool)
+            .await
+            .map_err(Arc::new)?;
+        Ok(operations
+            .into_iter()
+            .map(|tx| (TransactionId(tx.id.clone()), tx))
+            .collect())
     }
 }

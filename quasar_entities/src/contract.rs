@@ -1,10 +1,13 @@
+use async_graphql::dataloader::Loader;
 use async_graphql::{ComplexObject, Context};
-use sea_orm::Set;
 use sea_orm::{entity::prelude::*, ActiveValue::NotSet};
+use sea_orm::{Condition, Set};
+use std::collections::HashMap;
+use std::sync::Arc;
 use stellar_node_entities::contractdata;
 use stellar_xdr::{Error, LedgerEntry, ReadXdr};
 
-use crate::event;
+use crate::{event, QuasarDataLoader};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, async_graphql::SimpleObject)]
 #[sea_orm(table_name = "contracts")]
@@ -71,5 +74,34 @@ impl TryFrom<contractdata::Model> for ActiveModel {
             last_modified: Set(model.lastmodified),
             created_at: NotSet,
         })
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ContractId(String);
+
+#[async_trait::async_trait]
+impl Loader<ContractId> for QuasarDataLoader {
+    type Value = Model;
+    type Error = Arc<DbErr>;
+
+    async fn load(
+        &self,
+        keys: &[ContractId],
+    ) -> Result<HashMap<ContractId, Self::Value>, Self::Error> {
+        let mut condition = Condition::any();
+
+        for ContractId(address) in keys {
+            condition = condition.add(Column::Address.eq(address.clone()));
+        }
+        let contracts = Entity::find()
+            .filter(condition)
+            .all(&self.pool)
+            .await
+            .map_err(Arc::new)?;
+        Ok(contracts
+            .into_iter()
+            .map(|a| (ContractId(a.address.clone()), a))
+            .collect())
     }
 }

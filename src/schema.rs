@@ -1,9 +1,13 @@
 use async_graphql::{
     connection::{Connection, DefaultConnectionName, DefaultEdgeName, EmptyFields},
+    dataloader::DataLoader,
     Context, EmptyMutation, EmptySubscription, Object, Result, Schema,
 };
 use log::info;
-use quasar_entities::{account, contract, event, ledger, operation, transaction};
+use quasar_entities::{
+    account::{self},
+    contract, event, ledger, operation, transaction, QuasarDataLoader,
+};
 use sea_orm::{
     prelude::DateTimeWithTimeZone, ColumnTrait, DatabaseConnection, EntityTrait, Order,
     QueryFilter, QueryOrder, QuerySelect,
@@ -204,7 +208,12 @@ pub(super) fn build_schema(
     database: QuasarDatabase,
 ) -> ServiceSchema {
     let database = database.as_inner().clone();
-    let mut schema = Schema::build(QueryRoot, EmptyMutation, EmptySubscription).data(database);
+    let mut schema = Schema::build(QueryRoot, EmptyMutation, EmptySubscription)
+        .data(DataLoader::new(
+            QuasarDataLoader::new(database.clone()),
+            tokio::spawn,
+        ))
+        .data(database);
 
     if cfg!(debug_assertions) {
         info!("Debugging enabled, no limits on query");

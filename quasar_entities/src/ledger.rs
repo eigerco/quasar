@@ -1,9 +1,9 @@
-use async_graphql::{ComplexObject, Context};
-use sea_orm::{entity::prelude::*, ActiveValue::NotSet, Set};
+use crate::{account, QuasarDataLoader};
+use async_graphql::{dataloader::Loader, ComplexObject, Context};
+use sea_orm::{entity::prelude::*, ActiveValue::NotSet, Condition, Set};
+use std::{collections::HashMap, sync::Arc};
 use stellar_node_entities::ledgerheaders;
 use stellar_xdr::{Error, LedgerHeader, ReadXdr};
-
-use crate::account;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, async_graphql::SimpleObject)]
 #[sea_orm(table_name = "ledgers")]
@@ -73,5 +73,34 @@ impl TryFrom<ledgerheaders::Model> for ActiveModel {
             max_tx_set_size: Set(ledgerheader_data.max_tx_set_size as i32),
             created_at: NotSet,
         })
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LedgerHash(String);
+
+#[async_trait::async_trait]
+impl Loader<LedgerHash> for QuasarDataLoader {
+    type Value = Model;
+    type Error = Arc<DbErr>;
+
+    async fn load(
+        &self,
+        keys: &[LedgerHash],
+    ) -> Result<HashMap<LedgerHash, Self::Value>, Self::Error> {
+        let mut condition = Condition::any();
+
+        for LedgerHash(id) in keys {
+            condition = condition.add(Column::Hash.eq(id.clone()));
+        }
+        let ledgers = Entity::find()
+            .filter(condition)
+            .all(&self.pool)
+            .await
+            .map_err(Arc::new)?;
+        Ok(ledgers
+            .into_iter()
+            .map(|ledger| (LedgerHash(ledger.hash.clone()), ledger))
+            .collect())
     }
 }
