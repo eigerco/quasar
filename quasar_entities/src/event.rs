@@ -197,6 +197,9 @@ impl Loader<EventId> for QuasarDataLoader {
             .all(&self.pool)
             .await
             .map_err(Arc::new)?;
-        Ok(events.into_iter().map(|event| (EventId(event.id), event)).collect())
+        Ok(events
+            .into_iter()
+            .map(|event| (EventId(event.id), event))
+            .collect())
     }
 }
