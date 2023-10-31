@@ -101,7 +101,7 @@ impl Loader<ContractId> for QuasarDataLoader {
             .map_err(Arc::new)?;
         Ok(contracts
             .into_iter()
-            .map(|a| (ContractId(a.address.clone()), a))
+            .map(|contract| (ContractId(contract.address.clone()), contract))
             .collect())
     }
 }

@@ -159,7 +159,7 @@ impl Loader<AccountId> for QuasarDataLoader {
             .map_err(Arc::new)?;
         Ok(accounts
             .into_iter()
-            .map(|a| (AccountId(a.id.clone()), a))
+            .map(|account| (AccountId(account.id.clone()), account))
             .collect())
     }
 }
