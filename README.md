@@ -2,6 +2,8 @@
 
 A Soroban indexer that offers a GraphQL API for ledgers, transactions, contracts, operations and events among others written in Rust.
 
+Currently built to handle a subset of the Stellar dataset.
+
 ## Prerequisites
 
 - You need a [running Stellar Core node](https://developers.stellar.org/docs/run-core-node/installation).
@@ -40,6 +42,8 @@ Install `quasar` from the releases page. Here is an example in Linux:
   ./quasar_indexer
 ```
 
+GraphQL Playground will be available at `http://localhost:8000/`. Prometheus metrics at `http://localhost:8000/metrics`.
+
 ## Development
 
 Clone the project
@@ -65,6 +69,49 @@ Start the server
 ```bash
   cargo run
 ```
+
+## Overview of features
+
+* Ingestion of:
+  * ledgers
+  * accounts
+  * transactions
+  * operations
+  * contracts
+  * events
+* GraphQL:
+  * Playground IDE with documentation
+  * sorting
+  * filtering
+  * pagination
+  * relationships
+* Prometheus metrics
+
+## Planned features
+
+### Handling of the full Stellar dataset
+
+Currently Quasar supports working with a limited subset of the Stellar dataset. We plan to support the full dataset, so that Quasar can run alongside a Full Validator, in the future. This will allow Quasar to be used as a data source for Stellar applications.
+
+### GraphQL subscriptions
+
+Subscriptions will allow clients to receive real-time updates from the indexer. For example a client can subscribe to a specific account and receive updates when the account's balance changes. This will be useful for building real-time applications.
+
+### Processing of more data
+
+The current version of Quasar supports only basic data types. Not all of their fields are ingested and processed. Some relationships between entities are also missing. We plan to add support for:
+* more Stellar data types
+* missing fields in existing data types
+* more relationships between entities
+* aggregated data
+
+### More contract-specific GraphQL queries
+
+We plan to add more GraphQL queries that are specific to Stellar contracts.
+
+### Access control
+
+We plan to add access control to the GraphQL API. This will allow owners of the server to restrict access to certain data.
 
 ## Contributing
 
