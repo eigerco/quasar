@@ -136,7 +136,7 @@ impl TryFrom<accounts::Model> for ActiveModel {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct AccountId(String);
+pub struct AccountId(pub String);
 
 #[async_trait::async_trait]
 impl Loader<AccountId> for QuasarDataLoader {

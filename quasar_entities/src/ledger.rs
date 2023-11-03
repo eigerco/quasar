@@ -77,7 +77,7 @@ impl TryFrom<ledgerheaders::Model> for ActiveModel {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct LedgerHash(String);
+pub struct LedgerHash(pub String);
 
 #[async_trait::async_trait]
 impl Loader<LedgerHash> for QuasarDataLoader {

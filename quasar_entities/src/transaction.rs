@@ -148,7 +148,7 @@ impl TryFrom<TransactionEnvelope> for ActiveModel {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct TransactionId(String);
+pub struct TransactionId(pub String);
 
 #[async_trait::async_trait]
 impl Loader<TransactionId> for QuasarDataLoader {

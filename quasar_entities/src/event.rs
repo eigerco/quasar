@@ -179,7 +179,7 @@ fn val_to_json(val: &ScVal) -> Result<Json, EventError> {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct EventId(i32);
+pub struct EventId(pub i32);
 
 #[async_trait::async_trait]
 impl Loader<EventId> for QuasarDataLoader {

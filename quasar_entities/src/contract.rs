@@ -78,7 +78,7 @@ impl TryFrom<contractdata::Model> for ActiveModel {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct ContractId(String);
+pub struct ContractId(pub String);
 
 #[async_trait::async_trait]
 impl Loader<ContractId> for QuasarDataLoader {

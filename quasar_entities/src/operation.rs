@@ -65,7 +65,7 @@ impl TryFrom<Operation> for ActiveModel {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OperationId(i32);
+pub struct OperationId(pub i32);
 
 #[async_trait::async_trait]
 impl Loader<OperationId> for QuasarDataLoader {
