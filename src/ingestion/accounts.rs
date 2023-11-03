@@ -42,7 +42,17 @@ pub(super) async fn ingest_account(
     account::Entity::insert(account)
         .on_conflict(
             OnConflict::column(account::Column::Id)
-                .update_columns([account::Column::LastModified, account::Column::Balance])
+                .update_columns([
+                    account::Column::LastModified,
+                    account::Column::Balance,
+                    account::Column::BuyingLiabilities,
+                    account::Column::HomeDomain,
+                    account::Column::InflationDestination,
+                    account::Column::MasterWeight,
+                    account::Column::NumberOfSubentries,
+                    account::Column::SellingLiabilities,
+                    account::Column::SequenceNumber,
+                ])
                 .to_owned(),
         )
         .exec(db.as_inner())
