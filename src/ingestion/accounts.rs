@@ -42,7 +42,7 @@ pub(super) async fn ingest_account(
     account::Entity::insert(account)
         .on_conflict(
             OnConflict::column(account::Column::Id)
-                .do_nothing()
+                .update_columns([account::Column::LastModified, account::Column::Balance])
                 .to_owned(),
         )
         .exec(db.as_inner())

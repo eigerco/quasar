@@ -49,7 +49,7 @@ async fn ingest_contract(
     contract::Entity::insert(contract)
         .on_conflict(
             OnConflict::column(contract::Column::Address)
-                .do_nothing()
+                .update_columns([contract::Column::LastModified])
                 .to_owned(),
         )
         .exec(&**database)
