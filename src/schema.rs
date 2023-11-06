@@ -14,10 +14,7 @@ use quasar_entities::{
     ledger::{self, LedgerHash},
     operation, transaction, QuasarDataLoader,
 };
-use sea_orm::{
-    ColumnTrait, DatabaseConnection, EntityTrait, Order,
-    QueryFilter, QueryOrder,
-};
+use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, Order, QueryFilter, QueryOrder};
 
 use crate::databases::QuasarDatabase;
 
