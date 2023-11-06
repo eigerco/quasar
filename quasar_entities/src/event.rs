@@ -1,10 +1,12 @@
-use async_graphql::{ComplexObject, Context};
-use sea_orm::{entity::prelude::*, ActiveValue::NotSet, Set};
+use async_graphql::{dataloader::Loader, ComplexObject, Context};
+use sea_orm::{entity::prelude::*, ActiveValue::NotSet, Condition, Set};
 use serde_json::json;
+use std::collections::HashMap;
+use std::sync::Arc;
 use stellar_xdr::{ContractEvent, Error, ScVal, WriteXdr};
 use thiserror::Error;
 
-use crate::{contract, transaction};
+use crate::{contract, transaction, QuasarDataLoader};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, async_graphql::SimpleObject)]
 #[sea_orm(table_name = "events")]
@@ -174,4 +176,30 @@ fn val_to_json(val: &ScVal) -> Result<Json, EventError> {
         _ => Json::Null,
     };
     Ok(res)
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct EventId(pub i32);
+
+#[async_trait::async_trait]
+impl Loader<EventId> for QuasarDataLoader {
+    type Value = Model;
+    type Error = Arc<DbErr>;
+
+    async fn load(&self, keys: &[EventId]) -> Result<HashMap<EventId, Self::Value>, Self::Error> {
+        let mut condition = Condition::any();
+
+        for EventId(id) in keys {
+            condition = condition.add(Column::Id.eq(*id));
+        }
+        let events = Entity::find()
+            .filter(condition)
+            .all(&self.pool)
+            .await
+            .map_err(Arc::new)?;
+        Ok(events
+            .into_iter()
+            .map(|event| (EventId(event.id), event))
+            .collect())
+    }
 }

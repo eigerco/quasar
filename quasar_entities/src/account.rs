@@ -1,12 +1,14 @@
+use std::collections::HashMap;
+
 use thiserror::Error;
 
-use async_graphql::{ComplexObject, Context};
+use async_graphql::{dataloader::Loader, ComplexObject, Context};
 use base64::{engine::general_purpose, Engine};
-use sea_orm::{entity::prelude::*, ActiveValue::NotSet, Set};
-
+use sea_orm::{entity::prelude::*, ActiveValue::NotSet, Condition, Set};
+use std::sync::Arc;
 use stellar_node_entities::accounts;
 
-use crate::{ledger, transaction};
+use crate::{ledger, transaction, QuasarDataLoader};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, async_graphql::SimpleObject)]
 #[sea_orm(table_name = "accounts")]
@@ -80,7 +82,7 @@ impl Model {
     }
 }
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone)]
 pub enum AccountError {
     #[error("Base64 decoding error: {0}")]
     Base64Error(#[from] base64::DecodeError),
@@ -88,6 +90,8 @@ pub enum AccountError {
     FromUtf8Error(#[from] std::string::FromUtf8Error),
     #[error("Invalid account thresholds")]
     InvalidThresholds,
+    #[error("Base64 decoding error: {0}")]
+    DatabaseError(#[from] Arc<sea_orm::DbErr>),
 }
 
 impl TryFrom<accounts::Model> for ActiveModel {
@@ -128,5 +132,34 @@ impl TryFrom<accounts::Model> for ActiveModel {
             last_modified: Set(accounts.lastmodified),
             created_at: NotSet,
         })
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct AccountId(pub String);
+
+#[async_trait::async_trait]
+impl Loader<AccountId> for QuasarDataLoader {
+    type Value = Model;
+    type Error = AccountError;
+
+    async fn load(
+        &self,
+        keys: &[AccountId],
+    ) -> Result<HashMap<AccountId, Self::Value>, Self::Error> {
+        let mut condition = Condition::any();
+
+        for AccountId(id) in keys {
+            condition = condition.add(Column::Id.eq(id.clone()));
+        }
+        let accounts = Entity::find()
+            .filter(condition)
+            .all(&self.pool)
+            .await
+            .map_err(Arc::new)?;
+        Ok(accounts
+            .into_iter()
+            .map(|account| (AccountId(account.id.clone()), account))
+            .collect())
     }
 }

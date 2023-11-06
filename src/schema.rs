@@ -1,7 +1,25 @@
-use async_graphql::{Context, EmptyMutation, EmptySubscription, Object, Result, Schema};
+use async_graphql::dataloader::*;
+use async_graphql::{
+    connection::{Connection, DefaultConnectionName, DefaultEdgeName, EmptyFields},
+    dataloader::{DataLoader, Loader},
+    Context, EmptyMutation, EmptySubscription, Object, Result, Schema,
+};
 use log::info;
-use quasar_entities::{account, contract, event, ledger, operation, transaction};
-use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, Order, QueryFilter, QueryOrder};
+use quasar_entities::account::AccountId;
+use quasar_entities::contract::ContractId;
+use quasar_entities::event::EventId;
+use quasar_entities::operation::OperationId;
+use quasar_entities::transaction::TransactionId;
+use quasar_entities::{
+    account::{self},
+    contract, event,
+    ledger::{self, LedgerHash},
+    operation, transaction, QuasarDataLoader,
+};
+use sea_orm::{
+    prelude::DateTimeWithTimeZone, ColumnTrait, DatabaseConnection, EntityTrait, Order,
+    QueryFilter, QueryOrder, QuerySelect,
+};
 
 use crate::databases::QuasarDatabase;
 
@@ -29,11 +47,10 @@ impl QueryRoot {
         ctx: &Context<'_>,
         #[graphql(desc = "ledger hash")] hash: String,
     ) -> Result<Option<ledger::Model>> {
-        let database = ctx.data::<DatabaseConnection>()?;
-        Ok(ledger::Entity::find()
-            .filter(ledger::Column::Hash.eq(hash))
-            .one(database)
-            .await?)
+        let id = LedgerHash(hash);
+        let loader = ctx.data::<QuasarDataLoader>()?;
+        let res = loader.load(&[id.clone()]).await?;
+        Ok(res.get(&id).cloned())
     }
 
     async fn ledger_by_sequence(
@@ -76,11 +93,10 @@ impl QueryRoot {
         ctx: &Context<'_>,
         #[graphql(desc = "contract address")] address: String,
     ) -> Result<Option<contract::Model>> {
-        let database = ctx.data::<DatabaseConnection>()?;
-        Ok(contract::Entity::find()
-            .filter(contract::Column::Address.eq(address))
-            .one(database)
-            .await?)
+        let id = ContractId(address);
+        let loader = ctx.data::<QuasarDataLoader>()?;
+        let res = loader.load(&[id.clone()]).await?;
+        Ok(res.get(&id).cloned())
     }
 
     async fn contracts(
@@ -111,11 +127,10 @@ impl QueryRoot {
         ctx: &Context<'_>,
         #[graphql(desc = "account id")] id: String,
     ) -> Result<Option<account::Model>> {
-        let database = ctx.data::<DatabaseConnection>()?;
-        Ok(account::Entity::find()
-            .filter(account::Column::Id.eq(id))
-            .one(database)
-            .await?)
+        let id = AccountId(id);
+        let loader = ctx.data::<QuasarDataLoader>()?;
+        let res = loader.load(&[id.clone()]).await?;
+        Ok(res.get(&id).cloned())
     }
 
     async fn accounts(
@@ -147,11 +162,10 @@ impl QueryRoot {
         ctx: &Context<'_>,
         #[graphql(desc = "event id")] id: i32,
     ) -> Result<Option<event::Model>> {
-        let database = ctx.data::<DatabaseConnection>()?;
-        Ok(event::Entity::find()
-            .filter(event::Column::Id.eq(id))
-            .one(database)
-            .await?)
+        let id = EventId(id);
+        let loader = ctx.data::<QuasarDataLoader>()?;
+        let res = loader.load(&[id.clone()]).await?;
+        Ok(res.get(&id).cloned())
     }
 
     async fn events(
@@ -183,11 +197,10 @@ impl QueryRoot {
         ctx: &Context<'_>,
         #[graphql(desc = "transaction id")] id: String,
     ) -> Result<Option<transaction::Model>> {
-        let database = ctx.data::<DatabaseConnection>()?;
-        Ok(transaction::Entity::find()
-            .filter(transaction::Column::Id.eq(id))
-            .one(database)
-            .await?)
+        let id = TransactionId(id);
+        let loader = ctx.data::<QuasarDataLoader>()?;
+        let res = loader.load(&[id.clone()]).await?;
+        Ok(res.get(&id).cloned())
     }
 
     async fn transactions(
@@ -221,11 +234,10 @@ impl QueryRoot {
         ctx: &Context<'_>,
         #[graphql(desc = "operation id")] id: i32,
     ) -> Result<Option<operation::Model>> {
-        let database = ctx.data::<DatabaseConnection>()?;
-        Ok(operation::Entity::find()
-            .filter(operation::Column::Id.eq(id))
-            .one(database)
-            .await?)
+        let id = OperationId(id);
+        let loader = ctx.data::<QuasarDataLoader>()?;
+        let res = loader.load(&[id.clone()]).await?;
+        Ok(res.get(&id).cloned())
     }
 
     async fn operations(
@@ -259,7 +271,12 @@ pub(super) fn build_schema(
     database: QuasarDatabase,
 ) -> ServiceSchema {
     let database = database.as_inner().clone();
-    let mut schema = Schema::build(QueryRoot, EmptyMutation, EmptySubscription).data(database);
+    let mut schema = Schema::build(QueryRoot, EmptyMutation, EmptySubscription)
+        .data(DataLoader::new(
+            QuasarDataLoader::new(database.clone()),
+            tokio::spawn,
+        ))
+        .data(database);
 
     if cfg!(debug_assertions) {
         info!("Debugging enabled, no limits on query");
