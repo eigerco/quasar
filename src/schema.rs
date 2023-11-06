@@ -1,6 +1,4 @@
-use async_graphql::dataloader::*;
 use async_graphql::{
-    connection::{Connection, DefaultConnectionName, DefaultEdgeName, EmptyFields},
     dataloader::{DataLoader, Loader},
     Context, EmptyMutation, EmptySubscription, Object, Result, Schema,
 };
@@ -17,8 +15,8 @@ use quasar_entities::{
     operation, transaction, QuasarDataLoader,
 };
 use sea_orm::{
-    prelude::DateTimeWithTimeZone, ColumnTrait, DatabaseConnection, EntityTrait, Order,
-    QueryFilter, QueryOrder, QuerySelect,
+    ColumnTrait, DatabaseConnection, EntityTrait, Order,
+    QueryFilter, QueryOrder,
 };
 
 use crate::databases::QuasarDatabase;
