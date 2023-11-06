@@ -8,19 +8,13 @@ Currently built to handle a subset of the Stellar dataset.
 
 - You need a [running Stellar Core node](https://developers.stellar.org/docs/run-core-node/installation).
 
-```
-docker run --rm -it \
-          -p "8000:8000" \
-          -p "8001:5432" \
-          --name stellar \
-          stellar/quickstart:latest \
-          --standalone \
-          --enable-soroban-rpc
+```sh
+docker run --rm -it -p "8000:8000" -p "8001:5432" --name stellar stellar/quickstart:latest --standalone --enable-soroban-rpc
 ```
 
 - You also need a running Postgres instance for persistence, eg:
 
-```
+```sh
 docker run --name quasar -e POSTGRES_PASSWORD=quasar -e POSTGRES_DB=quasar_development  -p 5432:5432 -v postgres-data:/var/lib/postgresql/data -d postgres
 ```
 
