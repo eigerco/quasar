@@ -7,7 +7,22 @@ Currently built to handle a subset of the Stellar dataset.
 ## Prerequisites
 
 - You need a [running Stellar Core node](https://developers.stellar.org/docs/run-core-node/installation).
-- You also need a running Postgres instance for persistence.
+
+```
+docker run --rm -it \
+          -p "8000:8000" \
+          -p "8001:5432" \
+          --name stellar \
+          stellar/quickstart:latest \
+          --standalone \
+          --enable-soroban-rpc
+```
+
+- You also need a running Postgres instance for persistence, eg:
+
+```
+docker run --name quasar -e POSTGRES_PASSWORD=quasar -e POSTGRES_DB=quasar_development  -p 5432:5432 -v postgres-data:/var/lib/postgresql/data -d postgres
+```
 
 ## Setup
 
@@ -72,20 +87,20 @@ Start the server
 
 ## Overview of features
 
-* Ingestion of:
-  * ledgers
-  * accounts
-  * transactions
-  * operations
-  * contracts
-  * events
-* GraphQL:
-  * Playground IDE with documentation
-  * sorting
-  * filtering
-  * pagination
-  * relationships
-* Prometheus metrics
+- Ingestion of:
+  - ledgers
+  - accounts
+  - transactions
+  - operations
+  - contracts
+  - events
+- GraphQL:
+  - Playground IDE with documentation
+  - sorting
+  - filtering
+  - pagination
+  - relationships
+- Prometheus metrics
 
 ## Planned features
 
@@ -100,10 +115,11 @@ Subscriptions will allow clients to receive real-time updates from the indexer. 
 ### Processing of more data
 
 The current version of Quasar supports only basic data types. Not all of their fields are ingested and processed. Some relationships between entities are also missing. We plan to add support for:
-* more Stellar data types
-* missing fields in existing data types
-* more relationships between entities
-* aggregated data
+
+- more Stellar data types
+- missing fields in existing data types
+- more relationships between entities
+- aggregated data
 
 ### More contract-specific GraphQL queries
 
