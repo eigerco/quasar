@@ -2,7 +2,7 @@ use log::info;
 use quasar_entities::transaction;
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
 use stellar_node_entities::{prelude::Txhistory, txhistory};
-use stellar_xdr::{ReadXdr, TransactionEnvelope, TransactionMeta};
+use stellar_xdr::curr::{Limits, ReadXdr, TransactionEnvelope, TransactionMeta};
 
 use crate::databases::{NodeDatabase, QuasarDatabase};
 
@@ -41,8 +41,10 @@ pub(super) async fn ingest_transaction(
     stellar_node_transaction: txhistory::Model,
     metrics: &IngestionMetrics,
 ) -> Result<(), IngestionError> {
-    let transaction_body = TransactionEnvelope::from_xdr_base64(&stellar_node_transaction.txbody)?;
-    let transaction_meta = TransactionMeta::from_xdr_base64(&stellar_node_transaction.txmeta)?;
+    let transaction_body =
+        TransactionEnvelope::from_xdr_base64(&stellar_node_transaction.txbody, Limits::none())?;
+    let transaction_meta =
+        TransactionMeta::from_xdr_base64(&stellar_node_transaction.txmeta, Limits::none())?;
     let mut transaction: transaction::ActiveModel =
         transaction::ActiveModel::try_from(transaction_body.clone())?;
 

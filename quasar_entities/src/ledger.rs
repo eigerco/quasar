@@ -3,7 +3,7 @@ use async_graphql::{dataloader::Loader, ComplexObject, Context};
 use sea_orm::{entity::prelude::*, ActiveValue::NotSet, Condition, Set};
 use std::{collections::HashMap, sync::Arc};
 use stellar_node_entities::ledgerheaders;
-use stellar_xdr::{Error, LedgerHeader, ReadXdr};
+use stellar_xdr::curr::{Error, LedgerHeader, Limits, ReadXdr};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, async_graphql::SimpleObject)]
 #[sea_orm(table_name = "ledgers")]
@@ -57,7 +57,7 @@ impl TryFrom<ledgerheaders::Model> for ActiveModel {
     type Error = Error;
 
     fn try_from(ledgerheaders: ledgerheaders::Model) -> Result<Self, Self::Error> {
-        let ledgerheader_data = LedgerHeader::from_xdr_base64(ledgerheaders.data)?;
+        let ledgerheader_data = LedgerHeader::from_xdr_base64(ledgerheaders.data, Limits::none())?;
 
         Ok(Self {
             hash: Set(ledgerheaders.ledgerhash),

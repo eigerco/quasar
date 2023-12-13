@@ -4,7 +4,7 @@ use std::sync::Arc;
 use crate::{transaction, QuasarDataLoader};
 use async_graphql::{dataloader::Loader, ComplexObject, Context};
 use sea_orm::{entity::prelude::*, ActiveValue::NotSet, Condition, Set};
-use stellar_xdr::{Error, Operation};
+use stellar_xdr::curr::{Error, Operation};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, async_graphql::SimpleObject)]
 #[sea_orm(table_name = "operations")]

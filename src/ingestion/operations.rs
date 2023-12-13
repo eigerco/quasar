@@ -1,6 +1,6 @@
 use quasar_entities::operation;
 use sea_orm::{ActiveModelTrait, Set};
-use stellar_xdr::{Operation, TransactionEnvelope};
+use stellar_xdr::curr::{Operation, TransactionEnvelope};
 
 use crate::databases::QuasarDatabase;
 

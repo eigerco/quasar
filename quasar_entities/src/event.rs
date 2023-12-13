@@ -3,7 +3,9 @@ use sea_orm::{entity::prelude::*, ActiveValue::NotSet, Condition, Set};
 use serde_json::json;
 use std::collections::HashMap;
 use std::sync::Arc;
-use stellar_xdr::{ContractEvent, Error, ScVal, WriteXdr};
+use stellar_xdr::curr::{
+    ContractEvent, ContractEventBody, Error as StellarXdrError, Limits, ScVal, WriteXdr,
+};
 use thiserror::Error;
 
 use crate::{contract, transaction, QuasarDataLoader};
@@ -26,7 +28,7 @@ pub struct Model {
 #[derive(Error, Debug)]
 pub enum EventError {
     #[error("XDR decoding error: {0}")]
-    XdrError(#[from] stellar_xdr::Error),
+    XdrError(#[from] StellarXdrError),
     #[error("Serde error: {0}")]
     SerdeJsonError(#[from] serde_json::Error),
     #[error("Invalid event")]
@@ -91,13 +93,13 @@ impl TryFrom<ContractEvent> for ActiveModel {
 
     fn try_from(event: ContractEvent) -> Result<Self, Self::Error> {
         let (topic, value) = match &event.body {
-            stellar_xdr::ContractEventBody::V0(body) => {
+            ContractEventBody::V0(body) => {
                 let topic = &body.topics[0];
                 let topic = match topic {
-                    ScVal::Symbol(topic) => topic.to_string()?,
+                    ScVal::Symbol(topic) => topic.to_string(),
                     _ => Err(EventError::Invalid)?,
                 };
-                let value = val_to_json(&body.data).map_err(|_| Error::Invalid)?;
+                let value = val_to_json(&body.data).map_err(|_| EventError::Invalid)?;
                 (topic, value)
             }
         };
@@ -119,9 +121,10 @@ impl TryFrom<ContractEvent> for ActiveModel {
 fn val_to_json(val: &ScVal) -> Result<Json, EventError> {
     let res = match val {
         ScVal::Bool(val) => json!(val),
-        ScVal::Error(e) => json!({
-            "error": e.to_xdr_base64()?
-        }),
+        ScVal::Error(e) => e
+            .to_xdr_base64(Limits::none())
+            .map(|x| json!({ "error": x }))
+            .map_err(|_| EventError::Invalid)?,
         ScVal::U32(val) => json!(val),
         ScVal::I32(val) => json!(val),
         ScVal::U64(val) => json!(val),
@@ -148,12 +151,13 @@ fn val_to_json(val: &ScVal) -> Result<Json, EventError> {
             "lo_hi": val.lo_hi,
             "lo_lo": val.lo_lo,
         }),
-        ScVal::Bytes(val) => json!({
-            "bytes_xdr": val.to_xdr_base64()?
-        }),
-        ScVal::String(val) => json!(val.to_string()?),
+        ScVal::Bytes(val) => val
+            .to_xdr_base64(Limits::none())
+            .map(|x| json!({ "bytes_xdr": x }))
+            .map_err(|_| EventError::Invalid)?,
+        ScVal::String(val) => json!(val.to_string()),
         ScVal::Symbol(s) => json!({
-            "symbol": s.to_string()?
+            "symbol": s.to_string()
         }),
         ScVal::Vec(Some(val)) => val
             .iter()
