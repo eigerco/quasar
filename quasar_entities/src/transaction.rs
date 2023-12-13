@@ -4,7 +4,7 @@ use std::sync::Arc;
 use async_graphql::{dataloader::Loader, ComplexObject, Context};
 use sea_orm::{entity::prelude::*, ActiveValue::NotSet, Condition, Set};
 use stellar_strkey::ed25519::PublicKey;
-use stellar_xdr::{Error, TransactionEnvelope};
+use stellar_xdr::curr::{Error, FeeBumpTransactionInnerTx, MuxedAccount, TransactionEnvelope};
 
 use crate::{account, event, operation, QuasarDataLoader};
 
@@ -105,16 +105,16 @@ impl TryFrom<TransactionEnvelope> for ActiveModel {
                 let muxed_account = envelope.tx.source_account.clone();
 
                 match muxed_account {
-                    stellar_xdr::MuxedAccount::Ed25519(account) => account,
-                    stellar_xdr::MuxedAccount::MuxedEd25519(account) => account.ed25519,
+                    MuxedAccount::Ed25519(account) => account,
+                    MuxedAccount::MuxedEd25519(account) => account.ed25519,
                 }
             }
             TransactionEnvelope::TxFeeBump(bump) => {
                 let muxed_account = bump.tx.fee_source.clone();
 
                 match muxed_account {
-                    stellar_xdr::MuxedAccount::Ed25519(account) => account,
-                    stellar_xdr::MuxedAccount::MuxedEd25519(account) => account.ed25519,
+                    MuxedAccount::Ed25519(account) => account,
+                    MuxedAccount::MuxedEd25519(account) => account.ed25519,
                 }
             }
         };
@@ -131,7 +131,7 @@ impl TryFrom<TransactionEnvelope> for ActiveModel {
             TransactionEnvelope::TxV0(envelope) => envelope.tx.seq_num.0,
             TransactionEnvelope::Tx(envelope) => envelope.tx.seq_num.0,
             TransactionEnvelope::TxFeeBump(envelope) => match envelope.tx.inner_tx {
-                stellar_xdr::FeeBumpTransactionInnerTx::Tx(tx) => tx.tx.seq_num.0,
+                FeeBumpTransactionInnerTx::Tx(tx) => tx.tx.seq_num.0,
             },
         };
 

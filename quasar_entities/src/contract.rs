@@ -5,7 +5,7 @@ use sea_orm::{Condition, Set};
 use std::collections::HashMap;
 use std::sync::Arc;
 use stellar_node_entities::contractdata;
-use stellar_xdr::{Error, LedgerEntry, ReadXdr};
+use stellar_xdr::curr::{Error, LedgerEntry, Limits, ReadXdr};
 
 use crate::{event, QuasarDataLoader};
 
@@ -56,7 +56,7 @@ impl TryFrom<contractdata::Model> for ActiveModel {
     type Error = Error;
 
     fn try_from(model: contractdata::Model) -> Result<Self, Self::Error> {
-        let entry = LedgerEntry::from_xdr_base64(model.ledgerentry)?;
+        let entry = LedgerEntry::from_xdr_base64(model.ledgerentry, Limits::none())?;
         let address = match entry.data {
             soroban_env_host::xdr::LedgerEntryData::ContractData(c) => match c.contract {
                 soroban_env_host::xdr::ScAddress::Contract(hash) => {

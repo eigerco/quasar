@@ -24,7 +24,7 @@ pub enum IngestionError {
     #[error("Missing ledger sequence")]
     MissingLedgerSequence,
     #[error("XDR decoding error: {0}")]
-    XdrError(#[from] stellar_xdr::Error),
+    XdrError(#[from] stellar_xdr::curr::Error),
     #[error("Account error: {0}")]
     AccountError(#[from] AccountError),
     #[error("Event error: {0}")]

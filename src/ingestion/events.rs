@@ -1,6 +1,6 @@
 use quasar_entities::event;
 use sea_orm::{ActiveModelTrait, DatabaseConnection, Set};
-use stellar_xdr::TransactionMeta;
+use stellar_xdr::curr::TransactionMeta;
 
 use super::{IngestionError, IngestionMetrics};
 
