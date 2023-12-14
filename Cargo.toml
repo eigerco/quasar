@@ -11,7 +11,7 @@ sea-orm = "0.12.2"
 async-graphql = "6.0.7"
 async-graphql-axum = "6.0.7"
 thiserror = "1.0"
-stellar-xdr = "20.0.0-rc1"
+stellar-xdr = "20.0.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
