@@ -1,8 +1,9 @@
 use log::{debug, info};
-use migration::OnConflict;
-use quasar_entities::contract;
-use sea_orm::{ColumnTrait, DatabaseConnection, DbErr, EntityTrait, QueryFilter, QueryOrder};
-use stellar_node_entities::{contractdata, prelude::Contractdata};
+use quasar_entities::{contract, contract_spec};
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, QueryFilter, QueryOrder,
+};
+use stellar_node_entities::{contractdata, prelude::Contractdata, contractcode};
 
 use crate::{
     databases::{NodeDatabase, QuasarDatabase},
@@ -27,7 +28,8 @@ pub(super) async fn ingest_contracts(
             while let Some(next_contract) =
                 next_contract_to_ingest(node_database, last_ingested).await?
             {
-                let ingested_sequence = ingest_contract(next_contract, quasar_database).await?;
+                let ingested_sequence = ingest_contract(next_contract.clone(), quasar_database).await?;
+                ingest_contract_spec(next_contract, quasar_database, node_database).await?;
                 last_ingested = Some(ingested_sequence);
 
                 metrics.contracts.inc();
@@ -46,20 +48,19 @@ async fn ingest_contract(
     let sequence = contract.lastmodified;
     info!("Ingesting contract since {}", sequence);
     let contract: contract::ActiveModel = contract::ActiveModel::try_from(contract).unwrap();
-    contract::Entity::insert(contract)
-        .on_conflict(
-            OnConflict::column(contract::Column::Address)
-                .update_columns([
-                    contract::Column::LastModified,
-                    contract::Column::Hash,
-                    contract::Column::Key,
-                    contract::Column::Type,
-                ])
-                .to_owned(),
-        )
-        .exec(&**database)
-        .await?;
+    contract.insert(&**database).await?;
     Ok(sequence)
+}
+
+async fn ingest_contract_spec(
+    contract: contractdata::Model,
+    database: &QuasarDatabase,
+    stellar_core: &NodeDatabase,
+) -> Result<(), IngestionError> {
+    let contract_code = contractcode::Entity::find_by_id(contract.contractid).one(&**stellar_core).await?.unwrap();
+    let contract_spec = contract_spec::ActiveModel::try_from(contract_code).unwrap();
+    contract_spec.insert(&**database).await?;
+    Ok(())
 }
 
 async fn next_contract_to_ingest(
