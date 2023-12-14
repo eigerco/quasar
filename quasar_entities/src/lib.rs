@@ -8,6 +8,7 @@ pub mod event;
 pub mod ledger;
 pub mod operation;
 pub mod transaction;
+pub mod contract_spec;
 
 #[derive(Clone, Debug)]
 pub struct QuasarDataLoader {

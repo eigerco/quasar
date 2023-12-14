@@ -32,8 +32,16 @@ pub enum Relation {
         from = "Column::Address"
     )]
     Event,
+    #[sea_orm(has_one = "super::contract_spec::Entity")]
+    ContractSpec,
 }
 
+
+impl Related<super::contract_spec::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::ContractSpec.def()
+    }
+}
 impl Related<super::event::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Event.def()
