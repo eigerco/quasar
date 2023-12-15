@@ -7,6 +7,7 @@ mod m20231016_094252_create_transactions;
 mod m20231016_094302_create_operations;
 mod m20231018_125257_create_events_table;
 mod m20231026_092149_created_at_cursor_on_tables;
+mod m20231214_125422_create_contract_spec_table;
 
 pub struct Migrator;
 
@@ -21,6 +22,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20231016_094252_create_transactions::Migration),
             Box::new(m20231016_094302_create_operations::Migration),
             Box::new(m20231026_092149_created_at_cursor_on_tables::Migration),
+            Box::new(m20231214_125422_create_contract_spec_table::Migration),
         ]
     }
 }

@@ -51,7 +51,6 @@ pub(super) async fn ingest(
         sleep(&ingestion).await;
 
         let ingestion_needed = new_ledgers_available(&node_database, &quasar_database).await;
-
         match ingestion_needed {
             Ok(IngestionNeeded::Yes {
                 last_ingested_ledger_sequence,
