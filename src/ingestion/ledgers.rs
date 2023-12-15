@@ -1,5 +1,5 @@
 use crate::databases::{NodeDatabase, QuasarDatabase};
-use crate::ingestion::contracts::ingest_contracts;
+use crate::ingestion::contracts::{ingest_contract_specs, ingest_contracts};
 use crate::ingestion::{accounts::ingest_accounts, transactions::ingest_transactions};
 use log::info;
 use quasar_entities::{ledger, prelude::Ledger};
@@ -10,6 +10,7 @@ use stellar_node_entities::prelude::Ledgerheaders;
 
 use super::{IngestionError, IngestionMetrics};
 
+#[derive(Debug)]
 pub enum IngestionNeeded {
     Yes {
         last_ingested_ledger_sequence: Option<i32>,
@@ -23,7 +24,6 @@ pub(super) async fn new_ledgers_available(
 ) -> Result<IngestionNeeded, DbErr> {
     let last_ingested_ledger_sequence = last_ingested_ledger_sequence(quasar_database).await?;
     let last_stellar_ledger_sequence = last_stellar_ledger_sequence(node_database).await?;
-
     let ingestion_needed = if last_ingested_ledger_sequence != last_stellar_ledger_sequence {
         IngestionNeeded::Yes {
             last_ingested_ledger_sequence,
@@ -90,7 +90,8 @@ async fn handle_new_ledger(
     ingest_ledger(ledger, quasar_database).await?;
     ingest_accounts(node_database, quasar_database, sequence, metrics).await?;
     ingest_transactions(node_database, quasar_database, sequence, metrics).await?;
-    ingest_contracts(node_database, quasar_database, metrics).await?;
+    ingest_contracts(node_database, quasar_database, sequence, metrics).await?;
+    ingest_contract_specs(node_database, quasar_database, sequence).await?;
 
     Ok(sequence)
 }

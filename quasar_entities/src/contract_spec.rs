@@ -1,6 +1,6 @@
 use crate::QuasarDataLoader;
 use async_graphql::dataloader::Loader;
-use sea_orm::{entity::prelude::*, ActiveValue::NotSet, FromJsonQueryResult, Set, Condition};
+use sea_orm::{entity::prelude::*, ActiveValue::NotSet, Condition, FromJsonQueryResult, Set};
 use std::collections::HashMap;
 use std::sync::Arc;
 use stellar_node_entities::contractcode;
@@ -37,7 +37,7 @@ pub struct FunctionSpec {
 }
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, async_graphql::SimpleObject)]
-#[sea_orm(table_name = "contracts_spec")]
+#[sea_orm(table_name = "contract_spec")]
 // #[graphql(complex)]
 #[graphql(name = "ContractSpec")]
 pub struct Model {
@@ -79,44 +79,35 @@ impl TryFrom<contractcode::Model> for ActiveModel {
             _ => Err(Error::Invalid),
         }?;
         let mut functions = Vec::new();
-        match &entry.data {
-            stellar_xdr::curr::LedgerEntryData::ContractCode(c) => {
-                let wasm = c.code.as_slice();
-                let spec = soroban_spec::read::from_wasm(wasm).unwrap();
+        if let stellar_xdr::curr::LedgerEntryData::ContractCode(c) = &entry.data {
+            let wasm = c.code.as_slice();
+            let spec = soroban_spec::read::from_wasm(wasm).unwrap();
 
-                for item in spec {
-                    match &item {
-                        stellar_xdr::curr::ScSpecEntry::FunctionV0(func) => {
-                            functions.push(Function {
-                                docs: func.doc.to_string(),
-                                name: func.name.to_utf8_string_lossy(),
-                                input: func
-                                    .inputs
-                                    .iter()
-                                    .map(|input| {
-                                        (
-                                            input.name.to_string(),
-                                            serde_json::to_value(input).unwrap(),
-                                        )
-                                    })
-                                    .collect(),
-                                output: func
-                                    .outputs
-                                    .iter()
-                                    .map(|output| {
-                                        (
-                                            output.name().to_string(),
-                                            serde_json::to_value(output).unwrap(),
-                                        )
-                                    })
-                                    .collect(),
-                            });
-                        }
-                        _ => {}
-                    }
+            for item in spec {
+                if let stellar_xdr::curr::ScSpecEntry::FunctionV0(func) = &item {
+                    functions.push(Function {
+                        docs: func.doc.to_string(),
+                        name: func.name.to_utf8_string_lossy(),
+                        input: func
+                            .inputs
+                            .iter()
+                            .map(|input| {
+                                (input.name.to_string(), serde_json::to_value(input).unwrap())
+                            })
+                            .collect(),
+                        output: func
+                            .outputs
+                            .iter()
+                            .map(|output| {
+                                (
+                                    output.name().to_string(),
+                                    serde_json::to_value(output).unwrap(),
+                                )
+                            })
+                            .collect(),
+                    });
                 }
             }
-            _ => {}
         };
         Ok(Self {
             address: Set(address),

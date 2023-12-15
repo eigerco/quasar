@@ -17,7 +17,6 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .primary_key(),
                     )
-                    .col(ColumnDef::new(ContractSpec::Address).string().not_null())
                     .col(ColumnDef::new(ContractSpec::Spec).json().not_null())
                     .col(
                         ColumnDef::new(ContractSpec::LastModified)

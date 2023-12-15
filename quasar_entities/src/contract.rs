@@ -36,7 +36,6 @@ pub enum Relation {
     ContractSpec,
 }
 
-
 impl Related<super::contract_spec::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::ContractSpec.def()
