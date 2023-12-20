@@ -21,7 +21,6 @@ use ingestion::ingest;
 use logger::setup_logger;
 use prometheus::Registry;
 use server::serve;
-// use std::collections::HashMap;
 
 mod configuration;
 mod database_metrics;
@@ -81,14 +80,17 @@ async fn main() {
 mod tests {
 
     use super::*;
-    use dockertest::waitfor::{MessageSource, MessageWait};
-    use dockertest::{DockerTest, Image, TestBodySpecification};
     use std::env;
     use std::process::Command;
     use std::sync::{Arc, Mutex};
+    use std::collections::HashMap;
+
     use tokio::time::{sleep, Duration};
+    use dockertest::waitfor::{MessageSource, MessageWait};
+    use dockertest::{DockerTest, Image, TestBodySpecification};
 
     const MAGIC_LINE: &str = "postgres password: ";
+    const PLAYGROUND_URL: &str = "http://127.0.0.1:8000";
 
     fn quasar_database_spec() -> TestBodySpecification {
         let exit_wait = MessageWait {
@@ -210,9 +212,24 @@ mod tests {
 
             println!("after ingest!");
 
-            let res = reqwest::get("http://127.0.0.1:8000").await.unwrap();
+            let res = reqwest::get(PLAYGROUND_URL).await.unwrap();
 
             assert_eq!(res.status(), reqwest::StatusCode::OK);
+
+            let client = reqwest::Client::new();
+
+            let mut query = HashMap::new();
+            query.insert("operationName", None);
+            // query.insert("variables", Some(&binding[..])); // how to write this??
+            query.insert("query", Some("{\n  ledgers {\n    hash\n  }\n}\n"));
+
+            let req = client.post(PLAYGROUND_URL).json(&query);
+
+            let resp = req.send().await.unwrap();
+
+            assert_eq!(res.status(), reqwest::StatusCode::OK);
+
+            let text = resp.text().await.unwrap();
 
             let mut ran = has_ran_test.lock().unwrap();
             *ran = true;
