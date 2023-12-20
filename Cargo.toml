@@ -33,3 +33,7 @@ stellar_node_entities = { path = "stellar_node_entities" }
 stellar-xdr = { workspace = true, features = ["base64"] }
 thiserror.workspace = true
 tokio = { version = "1.32.0", features = ["full"] }
+
+[dev-dependencies]
+dockertest = "0.4.0"
+reqwest = "0.11"
