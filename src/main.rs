@@ -80,14 +80,14 @@ async fn main() {
 mod tests {
 
     use super::*;
+    use std::collections::HashMap;
     use std::env;
     use std::process::Command;
     use std::sync::{Arc, Mutex};
-    use std::collections::HashMap;
 
-    use tokio::time::{sleep, Duration};
     use dockertest::waitfor::{MessageSource, MessageWait};
     use dockertest::{DockerTest, Image, TestBodySpecification};
+    use tokio::time::{sleep, Duration};
 
     const MAGIC_LINE: &str = "postgres password: ";
     const PLAYGROUND_URL: &str = "http://127.0.0.1:8000";
