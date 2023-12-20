@@ -34,29 +34,31 @@ pub struct Configuration {
     pub metrics: Metrics,
 }
 
-pub(super) fn setup_configuration(args: Args) -> Configuration {
+pub(super) fn setup_configuration(args_opt: Option<Args>) -> Configuration {
     let mut config_builder = Config::builder()
         .add_source(File::with_name("config/config"))
         .add_source(File::with_name("config/local").required(false))
         .add_source(Environment::with_prefix("app"));
 
-    if let Some(database_url) = args.database_url {
-        config_builder = config_builder
-            .set_override("database_url", database_url)
-            .expect("Failed to set database_url");
-    }
+    if let Some(args) = args_opt {
+        if let Some(database_url) = args.database_url {
+            config_builder = config_builder
+                .set_override("database_url", database_url)
+                .expect("Failed to set database_url");
+        }
 
-    if let Some(stellar_node_database_url) = args.stellar_node_database_url {
-        config_builder = config_builder
-            .set_override("stellar_node_database_url", stellar_node_database_url)
-            .expect("Failed to set stellar_node_database_url");
+        if let Some(stellar_node_database_url) = args.stellar_node_database_url {
+            config_builder = config_builder
+                .set_override("stellar_node_database_url", stellar_node_database_url)
+                .expect("Failed to set stellar_node_database_url");
+        }
     }
 
     let configuration = config_builder
         .build()
         .expect("Failed to build configuration");
-    let configuration: Configuration = configuration
-        .try_deserialize()
-        .expect("Failed to deserialize configuration");
+
     configuration
+        .try_deserialize()
+        .expect("Failed to deserialize configuration")
 }
