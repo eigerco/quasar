@@ -5,7 +5,7 @@ use serde::Deserialize;
 
 use crate::Args;
 
-#[derive(Debug, Default, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Default, Deserialize, PartialEq, Eq, Copy, Clone)]
 pub struct Ingestion {
     pub polling_interval: u64,
 }
