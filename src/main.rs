@@ -81,7 +81,6 @@ mod tests {
 
     use super::*;
     use std::collections::HashMap;
-    use std::env;
     use std::process::Command;
     use std::sync::{Arc, Mutex};
 
@@ -138,7 +137,7 @@ mod tests {
             .output()
             .unwrap();
 
-        println!("out: {:?}", out);
+        // println!("out: {:?}", out);
 
         let output = std::str::from_utf8(&out.stdout).unwrap();
 
@@ -148,6 +147,21 @@ mod tests {
         password.get(0).unwrap().to_string()
     }
 
+    #[derive(serde::Deserialize)]
+    struct Ledger {
+        hash: String,
+    }
+
+    #[derive(serde::Deserialize)]
+    struct Ledgers {
+        ledgers: Vec<Ledger>,
+    }
+
+    #[derive(serde::Deserialize)]
+    struct Data {
+        data: Ledgers,
+    }
+
     #[test]
     fn localhost_appears() {
         // Define our test instance, will pull images from dockerhub.
@@ -155,10 +169,6 @@ mod tests {
 
         test.provide_container(quasar_database_spec())
             .provide_container(stellar_node_spec());
-
-        let curr_dir = env::current_dir().unwrap();
-        let mut path_str = curr_dir.display().to_string();
-        path_str.push_str("/tmp");
 
         // Run a command.
         println!("containers provided..");
@@ -185,7 +195,7 @@ mod tests {
             // This mitigates slightly the problem below
             sleep(Duration::from_secs(4)).await;
 
-            // This randomly throws the error:
+            // This randomly throws the following error:
             // Connection Error: encountered unexpected or invalid data: unexpected response from SSLRequest: 0x00
             // and sometimes that the password is wrong but that disappeared after some repeated runs
             let node_database = setup_stellar_node_database(&configuration).await;
@@ -210,26 +220,54 @@ mod tests {
                 .await;
             });
 
+            let wait_time = configuration.ingestion.polling_interval * 5;
+            println!(
+                "Going to sleep for {} seconds to give time to ingest data.",
+                wait_time
+            );
+            // giving time to digest ...
+            // 5 cycles of ingestion
+            sleep(Duration::from_secs(wait_time)).await;
+
             println!("after ingest!");
 
-            let res = reqwest::get(PLAYGROUND_URL).await.unwrap();
+            {
+                let res = reqwest::get(PLAYGROUND_URL).await.unwrap();
 
-            assert_eq!(res.status(), reqwest::StatusCode::OK);
+                assert_eq!(res.status(), reqwest::StatusCode::OK);
+            }
 
-            let client = reqwest::Client::new();
+            {
+                let client = reqwest::Client::new();
 
-            let mut query = HashMap::new();
-            query.insert("operationName", None);
-            // query.insert("variables", Some(&binding[..])); // how to write this??
-            query.insert("query", Some("{\n  ledgers {\n    hash\n  }\n}\n"));
+                let mut query = HashMap::new();
+                // probably need a custom value struct to add this
+                // query.insert("variables", Some(&binding[..]));
+                query.insert("operationName", None);
 
-            let req = client.post(PLAYGROUND_URL).json(&query);
+                let query_text = r#"
+                    {
+                        ledgers {
+                            hash
+                        }
+                    }"#;
 
-            let resp = req.send().await.unwrap();
+                query.insert("query", Some(query_text));
 
-            assert_eq!(res.status(), reqwest::StatusCode::OK);
+                let req = client.post(PLAYGROUND_URL).json(&query);
 
-            let text = resp.text().await.unwrap();
+                let resp = req.send().await.unwrap();
+
+                assert_eq!(resp.status(), reqwest::StatusCode::OK);
+
+                let json_response_body = resp.text().await.unwrap();
+
+                let ledgers_data: Data = serde_json::from_str(&json_response_body).unwrap();
+                let ledgers_list: Vec<Ledger> = ledgers_data.data.ledgers;
+
+                // this is directly correlated to the number of cycles
+                assert_eq!(ledgers_list.len(), 22);
+            }
 
             let mut ran = has_ran_test.lock().unwrap();
             *ran = true;
