@@ -1,9 +1,8 @@
 use std::net::Ipv4Addr;
 
+use clap::{command, Parser};
 use config::{Config, Environment, File};
 use serde::Deserialize;
-
-use crate::Args;
 
 #[derive(Debug, Default, Deserialize, PartialEq, Eq, Copy, Clone)]
 pub struct Ingestion {
@@ -34,7 +33,19 @@ pub struct Configuration {
     pub metrics: Metrics,
 }
 
-pub(super) fn setup_configuration(args_opt: Option<Args>) -> Configuration {
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+pub struct Args {
+    /// Database URL to use as a backend
+    #[arg(short, long)]
+    database_url: Option<String>,
+
+    /// Stellar node URL to ingest data from
+    #[arg(short, long)]
+    stellar_node_database_url: Option<String>,
+}
+
+pub fn setup_configuration(args_opt: Option<Args>) -> Configuration {
     let mut config_builder = Config::builder()
         .add_source(File::with_name("config/config"))
         .add_source(File::with_name("config/local").required(false))

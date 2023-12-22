@@ -11,9 +11,9 @@ use sea_orm::DatabaseConnection;
 use crate::configuration::Configuration;
 
 #[derive(Clone)]
-pub(super) struct NodeDatabase(DatabaseConnection);
+pub struct NodeDatabase(DatabaseConnection);
 #[derive(Clone)]
-pub(super) struct QuasarDatabase(DatabaseConnection);
+pub struct QuasarDatabase(DatabaseConnection);
 
 impl Deref for NodeDatabase {
     type Target = DatabaseConnection;
@@ -43,7 +43,7 @@ impl QuasarDatabase {
     }
 }
 
-pub(super) async fn setup_quasar_database(configuration: &Configuration) -> QuasarDatabase {
+pub async fn setup_quasar_database(configuration: &Configuration) -> QuasarDatabase {
     let quasar_database = setup_quasar_database_connection(configuration).await;
     Migrator::up(&quasar_database, None)
         .await
@@ -63,7 +63,7 @@ async fn setup_quasar_database_connection(configuration: &Configuration) -> Data
     }
 }
 
-pub(super) async fn setup_stellar_node_database(configuration: &Configuration) -> NodeDatabase {
+pub async fn setup_stellar_node_database(configuration: &Configuration) -> NodeDatabase {
     if let Some(node_database_url) = &configuration.stellar_node_database_url {
         info!(
             "Connecting the Stellar node database: {}",
@@ -78,6 +78,8 @@ pub(super) async fn setup_stellar_node_database(configuration: &Configuration) -
 }
 
 async fn setup_connection(database_url: &String) -> DatabaseConnection {
+    println!("{}", database_url);
+
     let connection_result = Database::connect(database_url).await;
 
     match connection_result {
@@ -87,8 +89,8 @@ async fn setup_connection(database_url: &String) -> DatabaseConnection {
             connection
         }
         Err(error) => {
-            error!("Error connecting to {}, {}", database_url, error);
-            std::process::exit(1);
+            panic!("Error connecting to {}, {}", database_url, error);
+            // std::process::exit(1);
         }
     }
 }
