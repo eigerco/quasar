@@ -17,7 +17,7 @@ const GAUGES: [&str; 6] = [
     "events",
 ];
 
-pub(super) fn start_database_metrics(database: QuasarDatabase, registry: Registry, interval: u64) {
+pub fn start_database_metrics(database: QuasarDatabase, registry: Registry, interval: u64) {
     tokio::spawn(async move {
         database_metrics(database, registry, interval).await;
     });

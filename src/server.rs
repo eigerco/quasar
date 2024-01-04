@@ -19,21 +19,24 @@ pub(crate) async fn graphql_playground() -> impl IntoResponse {
     ))
 }
 
-pub(super) async fn serve(api: &Api, database: QuasarDatabase, metrics: Registry) {
+pub async fn serve(api: &Api, database: QuasarDatabase, metrics: Option<Registry>) {
     let schema = build_schema(api.depth_limit, api.complexity_limit, database);
 
-    let (prometheus_layer, metric_handle) = PrometheusMetricLayer::pair();
+    let mut app = Router::new().route(
+        "/",
+        get(graphql_playground).post_service(GraphQL::new(schema)),
+    );
 
-    let app = Router::new()
-        .route(
-            "/",
-            get(graphql_playground).post_service(GraphQL::new(schema)),
-        )
-        .route(
-            "/metrics",
-            get(|| async move { collect_metrics(metrics, metric_handle) }),
-        )
-        .layer(prometheus_layer);
+    if let Some(metrics) = metrics {
+        let (prometheus_layer, metric_handle) = PrometheusMetricLayer::pair();
+
+        app = app
+            .route(
+                "/metrics",
+                get(|| async move { collect_metrics(metrics, metric_handle) }),
+            )
+            .layer(prometheus_layer);
+    }
 
     let socket_addr = (api.host, api.port).into();
 

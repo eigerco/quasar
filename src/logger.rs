@@ -5,7 +5,7 @@ use log4rs::{
     config::{Appender, Root},
 };
 
-pub(super) fn setup_logger() {
+pub fn setup_logger() {
     let stdout = ConsoleAppender::builder().build();
 
     let config = Log4rsConfig::builder()

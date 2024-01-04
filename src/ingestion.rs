@@ -39,13 +39,13 @@ pub(super) struct IngestionMetrics {
     pub events: IntCounter,
 }
 
-pub(super) async fn ingest(
+pub async fn ingest(
     node_database: NodeDatabase,
     quasar_database: QuasarDatabase,
     ingestion: Ingestion,
-    metrics: Registry,
+    metrics: Option<Registry>,
 ) {
-    let ingestion_metrics = setup_ingestion_metrics(&metrics);
+    let ingestion_metrics = setup_ingestion_metrics(metrics.as_ref());
 
     loop {
         sleep(&ingestion).await;
@@ -81,7 +81,7 @@ pub async fn sleep(ingestion: &Ingestion) {
     tokio::time::sleep(tokio::time::Duration::from_secs(ingestion.polling_interval)).await;
 }
 
-fn setup_ingestion_metrics(metrics: &Registry) -> IngestionMetrics {
+fn setup_ingestion_metrics(metrics: Option<&Registry>) -> IngestionMetrics {
     let ledgers = create_ingestion_counter(metrics, "ledgers");
     let contracts = create_ingestion_counter(metrics, "contracts");
     let accounts = create_ingestion_counter(metrics, "accounts");
@@ -100,7 +100,7 @@ fn setup_ingestion_metrics(metrics: &Registry) -> IngestionMetrics {
 }
 
 fn create_ingestion_counter(
-    metrics: &Registry,
+    metrics: Option<&Registry>,
     name: &str,
 ) -> prometheus::core::GenericCounter<prometheus::core::AtomicU64> {
     let counter = IntCounter::new(
@@ -108,8 +108,12 @@ fn create_ingestion_counter(
         format!("Number of ingested {}", name),
     )
     .unwrap();
-    metrics
-        .register(Box::new(counter.clone()))
-        .expect("Failed to register counter");
+
+    if let Some(metrics) = metrics {
+        metrics
+            .register(Box::new(counter.clone()))
+            .expect("Failed to register counter");
+    }
+
     counter
 }

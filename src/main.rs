@@ -13,41 +13,21 @@
     clippy::todo
 )]
 
-use clap::{command, Parser};
-use configuration::setup_configuration;
-use database_metrics::start_database_metrics;
-use databases::{setup_quasar_database, setup_stellar_node_database};
-use ingestion::ingest;
-use logger::setup_logger;
+use quasar_indexer::configuration::{setup_configuration, Args};
+use quasar_indexer::database_metrics::start_database_metrics;
+use quasar_indexer::databases::{setup_quasar_database, setup_stellar_node_database};
+use quasar_indexer::ingestion::ingest;
+use quasar_indexer::logger::setup_logger;
+use quasar_indexer::server::serve;
+
+use clap::Parser;
 use prometheus::Registry;
-use server::serve;
-
-mod configuration;
-mod database_metrics;
-mod databases;
-mod ingestion;
-mod logger;
-mod metrics;
-mod schema;
-mod server;
-
-#[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
-struct Args {
-    /// Database URL to use as a backend
-    #[arg(short, long)]
-    database_url: Option<String>,
-
-    /// Stellar node URL to ingest data from
-    #[arg(short, long)]
-    stellar_node_database_url: Option<String>,
-}
 
 #[tokio::main]
 async fn main() {
     let args = Args::parse();
 
-    let configuration = setup_configuration(args);
+    let configuration = setup_configuration(Some(args));
 
     setup_logger();
 
@@ -64,14 +44,19 @@ async fn main() {
     );
 
     // Start the HTTP server, including GraphQL API
-    serve(&configuration.api, quasar_database.clone(), metrics.clone()).await;
+    serve(
+        &configuration.api,
+        quasar_database.clone(),
+        Some(metrics.clone()),
+    )
+    .await;
 
     // Start the ingestion loop
     ingest(
         node_database,
         quasar_database,
         configuration.ingestion,
-        metrics,
+        Some(metrics),
     )
     .await;
 }
