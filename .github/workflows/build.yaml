@@ -34,6 +34,7 @@ jobs:
             docker load -i ~/image-cache/stellar.tar
             docker load -i ~/image-cache/postgres.tar
   build:
+    needs: load_docker
     timeout-minutes: 10
     permissions:
       contents: read
