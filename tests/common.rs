@@ -16,7 +16,7 @@ use tokio::time::{sleep, Duration};
 use std::thread::sleep as sleep_sync;
 use std::time::Duration as SyncDuration;
 
-const MAGIC_LINE: &str = "postgres password: ";
+const PASSWORD_LINE: &str = "postgres password: ";
 
 const PLAYGROUND_PORT: u16 = 8000;
 
@@ -73,7 +73,9 @@ fn quasar_database_spec(ext_port: u32, db_name: &str, handle: &str) -> TestBodyS
 
 fn stellar_node_spec(ext_port: u32, handle: &str) -> TestBodySpecification {
     let exit_wait = MessageWait {
-        message: MAGIC_LINE.to_string(),
+        // it has to arrive to this point otherwise weird
+        // SSH messages will appear
+        message: "INFO spawned: 'nginx'".to_string(),
         source: MessageSource::Stdout,
         timeout: 15,
     };
@@ -98,11 +100,9 @@ fn get_password_from_logs(container_name: &str) -> String {
         .output()
         .unwrap();
 
-    // println!("out: {:?}", out);
-
     let output = std::str::from_utf8(&out.stdout).unwrap();
 
-    let remind = output.split(MAGIC_LINE).collect::<Vec<&str>>();
+    let remind = output.split(PASSWORD_LINE).collect::<Vec<&str>>();
     let password = remind.get(1).unwrap().split("\n").collect::<Vec<&str>>();
 
     password.get(0).unwrap().to_string()
@@ -155,20 +155,11 @@ pub fn test_with_containers<Fut>(
             password, params.stellar_port
         );
         println!("stellar conn_str: {}", conn_str);
+
         configuration.stellar_node_database_url = Some(conn_str);
 
-        println!("sleeping before connecting to stellar..");
-        // This mitigates slightly the problem below
-        // There is a race condition somewhere
-        sleep(Duration::from_secs(4)).await;
-
-        // This randomly throws the following error:
-        // Connection Error: encountered unexpected or invalid data: unexpected response from SSLRequest: 0x00
-        // and sometimes that the password is wrong but that disappeared after some repeated runs
         let node_database = setup_stellar_node_database(&configuration).await;
         println!("connected to stellar!");
-
-        // let metrics = Registry::new();
 
         configuration.api.port = params.playground_port;
 
@@ -196,7 +187,6 @@ pub fn test_with_containers<Fut>(
         );
 
         // giving time to digest ...
-        // 5 cycles of ingestion
         sleep(Duration::from_secs(wait_time)).await;
 
         println!("after ingest!");
@@ -208,5 +198,6 @@ pub fn test_with_containers<Fut>(
     });
     let ran = has_ran.lock().unwrap();
     assert!(*ran);
-    sleep_sync(SyncDuration::from_secs(2));
+    // wait a moment after switching off
+    sleep_sync(SyncDuration::from_secs(1));
 }
