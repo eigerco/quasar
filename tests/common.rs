@@ -5,7 +5,6 @@ use quasar_indexer::{
     server::serve,
 };
 
-use prometheus::Registry;
 use std::future::Future;
 use std::process::Command;
 use std::sync::{Arc, Mutex};

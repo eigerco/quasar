@@ -4,22 +4,6 @@ use common::{test_with_containers, Params};
 use reqwest::StatusCode;
 use std::collections::HashMap;
 
-#[derive(serde::Deserialize)]
-#[allow(dead_code)]
-struct Ledger {
-    hash: String,
-}
-
-#[derive(serde::Deserialize)]
-struct Ledgers {
-    ledgers: Vec<Ledger>,
-}
-
-#[derive(serde::Deserialize)]
-struct Data {
-    data: Ledgers,
-}
-
 #[test]
 fn hitting_localhost() {
     let params = Params::default();
@@ -43,6 +27,29 @@ fn hitting_api_with_ledgers_query() {
         database_name: "quasar_dev1".to_string(),
     };
 
+    #[derive(serde::Deserialize)]
+    #[allow(dead_code)]
+    struct Ledger {
+        hash: String,
+    }
+
+    #[derive(serde::Deserialize)]
+    struct Ledgers {
+        ledgers: Vec<Ledger>,
+    }
+
+    #[derive(serde::Deserialize)]
+    struct Data {
+        data: Ledgers,
+    }
+
+    let query_text = r#"
+        {
+            ledgers {
+                hash
+            }
+        }"#;
+
     test_with_containers(params.clone(), move || async move {
         let client = reqwest::Client::new();
 
@@ -50,13 +57,6 @@ fn hitting_api_with_ledgers_query() {
         // probably need a custom value struct to add this
         // query.insert("variables", Some(&binding[..]));
         query.insert("operationName", None);
-
-        let query_text = r#"
-            {
-                ledgers {
-                    hash
-                }
-            }"#;
 
         query.insert("query", Some(query_text));
 
