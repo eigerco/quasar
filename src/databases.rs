@@ -2,7 +2,7 @@ use std::ops::Deref;
 
 use sea_orm::Database;
 
-use log::{error, info};
+use log::info;
 
 use migration::{Migrator, MigratorTrait};
 
@@ -58,8 +58,7 @@ async fn setup_quasar_database_connection(configuration: &Configuration) -> Data
 
         setup_connection(database_url).await
     } else {
-        error!("Database URL not set. Use config/ or --database-url");
-        std::process::exit(1);
+        panic!("Database URL not set. Use config/ or --database-url");
     }
 }
 
@@ -72,14 +71,11 @@ pub async fn setup_stellar_node_database(configuration: &Configuration) -> NodeD
 
         NodeDatabase(setup_connection(node_database_url).await)
     } else {
-        error!("Node database URL not set. Use config/, -s or --stellar-node-database-url");
-        std::process::exit(1);
+        panic!("Node database URL not set. Use config/, -s or --stellar-node-database-url");
     }
 }
 
 async fn setup_connection(database_url: &String) -> DatabaseConnection {
-    println!("{}", database_url);
-
     let connection_result = Database::connect(database_url).await;
 
     match connection_result {
@@ -90,7 +86,6 @@ async fn setup_connection(database_url: &String) -> DatabaseConnection {
         }
         Err(error) => {
             panic!("Error connecting to {}, {}", database_url, error);
-            // std::process::exit(1);
         }
     }
 }
