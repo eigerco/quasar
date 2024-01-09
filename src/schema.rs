@@ -266,12 +266,14 @@ pub(super) fn build_schema(
     database: QuasarDatabase,
 ) -> ServiceSchema {
     let database = database.as_inner().clone();
+    let quasar_db = QuasarDataLoader::new(database.clone());
     let mut schema = Schema::build(QueryRoot, EmptyMutation, EmptySubscription)
         .data(DataLoader::new(
-            QuasarDataLoader::new(database.clone()),
+            quasar_db.clone(),
             tokio::spawn,
         ))
-        .data(database);
+        .data(database)
+        .data(quasar_db);
 
     if cfg!(debug_assertions) {
         info!("Debugging enabled, no limits on query");
