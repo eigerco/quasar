@@ -268,10 +268,7 @@ pub(super) fn build_schema(
     let database = database.as_inner().clone();
     let quasar_db = QuasarDataLoader::new(database.clone());
     let mut schema = Schema::build(QueryRoot, EmptyMutation, EmptySubscription)
-        .data(DataLoader::new(
-            quasar_db.clone(),
-            tokio::spawn,
-        ))
+        .data(DataLoader::new(quasar_db.clone(), tokio::spawn))
         .data(database)
         .data(quasar_db);
 
