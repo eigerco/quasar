@@ -5,8 +5,6 @@ use log::info;
 use quasar_entities::{ledger, prelude::Ledger};
 use sea_orm::{ActiveModelTrait, ColumnTrait, QueryFilter};
 use sea_orm::{DatabaseConnection, DbErr, EntityTrait, QueryOrder};
-use stellar_node_entities::ledgerheaders;
-use stellar_node_entities::prelude::Ledgerheaders;
 
 use super::{IngestionError, IngestionMetrics};
 
@@ -49,12 +47,13 @@ async fn last_ingested_ledger_sequence(
 async fn last_stellar_ledger_sequence(
     node_database: &DatabaseConnection,
 ) -> Result<Option<i32>, DbErr> {
-    let last_stellar_ledger = ledgerheaders::Entity::find()
-        .order_by_desc(ledgerheaders::Column::Ledgerseq)
-        .one(node_database)
-        .await?;
-    let last_stellar_ledger_sequence = last_stellar_ledger.and_then(|ledger| ledger.ledgerseq);
-    Ok(last_stellar_ledger_sequence)
+    // let last_stellar_ledger = ledgerheaders::Entity::find()
+    //     // .order_by_desc(ledgerheaders::Column::Ledgerseq)
+    //     .one(node_database)
+    //     .await?;
+    // let last_stellar_ledger_sequence = last_stellar_ledger.and_then(|ledger| ledger.ledgerseq);
+    // Ok(last_stellar_ledger_sequence)
+    todo!()
 }
 
 pub(super) async fn ingest_ledgers(
@@ -66,9 +65,9 @@ pub(super) async fn ingest_ledgers(
     while let Some(next_ledger) =
         next_ledger_to_ingest(node_database, last_ingested_ledger_sequence).await?
     {
-        let ingested_sequence =
-            handle_new_ledger(next_ledger, quasar_database, node_database, metrics).await?;
-        last_ingested_ledger_sequence = Some(ingested_sequence);
+        // let ingested_sequence =
+        //     // handle_new_ledger(next_ledger, quasar_database, node_database, metrics).await?;
+        // last_ingested_ledger_sequence = Some(ingested_sequence);
 
         metrics.ledgers.inc();
     }
@@ -77,51 +76,54 @@ pub(super) async fn ingest_ledgers(
 }
 
 async fn handle_new_ledger(
-    ledger: ledgerheaders::Model,
+    // ledger: ledgerheaders::Model,
     quasar_database: &QuasarDatabase,
     node_database: &NodeDatabase,
     metrics: &IngestionMetrics,
 ) -> Result<i32, IngestionError> {
-    let sequence = ledger
-        .ledgerseq
-        .ok_or(IngestionError::MissingLedgerSequence)?;
-    info!("Ingesting ledger {} and associated data", sequence);
+    // let sequence = ledger
+    //     .ledgerseq
+    //     .ok_or(IngestionError::MissingLedgerSequence)?;
+    // info!("Ingesting ledger {} and associated data", sequence);
 
-    ingest_ledger(ledger, quasar_database).await?;
-    ingest_accounts(node_database, quasar_database, sequence, metrics).await?;
-    ingest_transactions(node_database, quasar_database, sequence, metrics).await?;
-    ingest_contracts(node_database, quasar_database, metrics).await?;
+    // ingest_ledger(ledger, quasar_database).await?;
+    // ingest_accounts(node_database, quasar_database, sequence, metrics).await?;
+    // ingest_transactions(node_database, quasar_database, sequence, metrics).await?;
+    // ingest_contracts(node_database, quasar_database, metrics).await?;
+    todo!();
+    // Ok(sequence)
 
-    Ok(sequence)
 }
 
 async fn ingest_ledger(
-    ledger: ledgerheaders::Model,
+    // ledger: ledgerheaders::Model,
     quasar_database: &DatabaseConnection,
 ) -> Result<(), IngestionError> {
-    let ledger: ledger::ActiveModel = ledger::ActiveModel::try_from(ledger)?;
-    ledger.insert(quasar_database).await?;
+    // let ledger: ledger::ActiveModel = ledger::ActiveModel::try_from(ledger)?;
+    // ledger.insert(quasar_database).await?;
     Ok(())
 }
 
 async fn next_ledger_to_ingest(
     node_database: &DatabaseConnection,
     last_ingested_ledger_sequence: Option<i32>,
-) -> Result<Option<ledgerheaders::Model>, IngestionError> {
-    let next_ledger = Ledgerheaders::find();
+) -> Result<Option<()>, IngestionError> {
+    // let next_ledger = Ledgerheaders::find();
 
-    let next_ledger = match last_ingested_ledger_sequence {
-        Some(last_ingested_ledger_sequence) => {
-            next_ledger.filter(ledgerheaders::Column::Ledgerseq.gt(last_ingested_ledger_sequence))
-        }
+    // let next_ledger = match last_ingested_ledger_sequence {
+    //     Some(last_ingested_ledger_sequence) => {
+    //         next_ledger
+    //         // .filter(ledgerheaders::Column::Ledgerseq.gt(last_ingested_ledger_sequence))
+    //     }
 
-        None => next_ledger,
-    };
+    //     None => next_ledger,
+    // };
 
-    let next_ledger = next_ledger
-        .order_by_asc(ledgerheaders::Column::Ledgerseq)
-        .one(node_database)
-        .await?;
+    // let next_ledger = next_ledger
+    //     // .order_by_asc(ledgerheaders::Column::Ledgerseq)
+    //     .one(node_database)
+    //     .await?;
 
-    Ok(next_ledger)
+    // Ok(next_ledger)
+    todo!()
 }

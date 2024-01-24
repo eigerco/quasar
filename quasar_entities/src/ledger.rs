@@ -2,7 +2,7 @@ use crate::{account, QuasarDataLoader};
 use async_graphql::{dataloader::Loader, ComplexObject, Context};
 use sea_orm::{entity::prelude::*, ActiveValue::NotSet, Condition, Set};
 use std::{collections::HashMap, sync::Arc};
-use stellar_node_entities::ledgerheaders;
+
 use stellar_xdr::curr::{Error, LedgerHeader, Limits, ReadXdr};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, async_graphql::SimpleObject)]
@@ -53,28 +53,28 @@ impl Model {
     }
 }
 
-impl TryFrom<ledgerheaders::Model> for ActiveModel {
-    type Error = Error;
+// impl TryFrom<ledgerheaders::Model> for ActiveModel {
+//     type Error = Error;
 
-    fn try_from(ledgerheaders: ledgerheaders::Model) -> Result<Self, Self::Error> {
-        let ledgerheader_data = LedgerHeader::from_xdr_base64(ledgerheaders.data, Limits::none())?;
+//     fn try_from(ledgerheaders: ledgerheaders::Model) -> Result<Self, Self::Error> {
+//         let ledgerheader_data = LedgerHeader::from_xdr_base64(ledgerheaders.data, Limits::none())?;
 
-        Ok(Self {
-            hash: Set(ledgerheaders.ledgerhash),
-            previous_ledger_hash: Set(ledgerheaders.prevhash),
-            protocol_version: Set(ledgerheader_data.ledger_version as i32),
-            sequence: Set(ledgerheaders.ledgerseq.expect("ledgerseq is missing")),
-            total_coins: Set(ledgerheader_data.total_coins),
-            fee_pool: Set(ledgerheader_data.fee_pool),
-            inflation_seq: Set(ledgerheader_data.inflation_seq as i32),
-            id_pool: Set(ledgerheader_data.id_pool as i64),
-            base_fee: Set(ledgerheader_data.base_fee as i32),
-            base_reserve: Set(ledgerheader_data.base_reserve as i32),
-            max_tx_set_size: Set(ledgerheader_data.max_tx_set_size as i32),
-            created_at: NotSet,
-        })
-    }
-}
+//         Ok(Self {
+//             hash: Set(ledgerheaders.ledgerhash),
+//             previous_ledger_hash: Set(ledgerheaders.prevhash),
+//             protocol_version: Set(ledgerheader_data.ledger_version as i32),
+//             sequence: Set(ledgerheaders.ledgerseq.expect("ledgerseq is missing")),
+//             total_coins: Set(ledgerheader_data.total_coins),
+//             fee_pool: Set(ledgerheader_data.fee_pool),
+//             inflation_seq: Set(ledgerheader_data.inflation_seq as i32),
+//             id_pool: Set(ledgerheader_data.id_pool as i64),
+//             base_fee: Set(ledgerheader_data.base_fee as i32),
+//             base_reserve: Set(ledgerheader_data.base_reserve as i32),
+//             max_tx_set_size: Set(ledgerheader_data.max_tx_set_size as i32),
+//             created_at: NotSet,
+//         })
+//     }
+// }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct LedgerHash(pub String);

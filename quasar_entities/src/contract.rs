@@ -4,7 +4,6 @@ use sea_orm::{entity::prelude::*, ActiveValue::NotSet};
 use sea_orm::{Condition, Set};
 use std::collections::HashMap;
 use std::sync::Arc;
-use stellar_node_entities::contractdata;
 use stellar_xdr::curr::{Error, LedgerEntry, Limits, ReadXdr};
 
 use crate::{event, QuasarDataLoader};
@@ -52,30 +51,30 @@ impl Model {
 
 impl ActiveModelBehavior for ActiveModel {}
 
-impl TryFrom<contractdata::Model> for ActiveModel {
-    type Error = Error;
+// impl TryFrom<contractdata::Model> for ActiveModel {
+//     type Error = Error;
 
-    fn try_from(model: contractdata::Model) -> Result<Self, Self::Error> {
-        let entry = LedgerEntry::from_xdr_base64(model.ledgerentry, Limits::none())?;
-        let address = match entry.data {
-            soroban_env_host::xdr::LedgerEntryData::ContractData(c) => match c.contract {
-                soroban_env_host::xdr::ScAddress::Contract(hash) => {
-                    Ok(stellar_strkey::Contract(hash.0).to_string())
-                }
-                _ => Err(Error::Invalid),
-            },
-            _ => Err(Error::Invalid),
-        }?;
-        Ok(Self {
-            r#type: Set(model.r#type.to_string()),
-            key: Set(model.key),
-            hash: Set(model.contractid.clone()),
-            address: Set(address),
-            last_modified: Set(model.lastmodified),
-            created_at: NotSet,
-        })
-    }
-}
+//     fn try_from(model: contractdata::Model) -> Result<Self, Self::Error> {
+//         let entry = LedgerEntry::from_xdr_base64(model.ledgerentry, Limits::none())?;
+//         let address = match entry.data {
+//             soroban_env_host::xdr::LedgerEntryData::ContractData(c) => match c.contract {
+//                 soroban_env_host::xdr::ScAddress::Contract(hash) => {
+//                     Ok(stellar_strkey::Contract(hash.0).to_string())
+//                 }
+//                 _ => Err(Error::Invalid),
+//             },
+//             _ => Err(Error::Invalid),
+//         }?;
+//         Ok(Self {
+//             r#type: Set(model.r#type.to_string()),
+//             key: Set(model.key),
+//             hash: Set(model.contractid.clone()),
+//             address: Set(address),
+//             last_modified: Set(model.lastmodified),
+//             created_at: NotSet,
+//         })
+//     }
+// }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ContractId(pub String);
