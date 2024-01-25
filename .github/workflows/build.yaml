@@ -35,7 +35,7 @@ jobs:
       #       docker load -i ~/image-cache/postgres.tar
 
   build:
-    needs: load_docker
+    needs: pull_docker
     timeout-minutes: 10
     permissions:
       contents: read
