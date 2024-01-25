@@ -78,7 +78,6 @@ fn query_ledgers_hashes() {
     });
 }
 
-
 // TODO to improve
 #[test]
 fn query_accounts_with_filters() {
