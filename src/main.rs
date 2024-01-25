@@ -16,30 +16,32 @@
 use std::{fs::File, io, path::Path};
 
 use clap::{command, Parser};
-use configuration::setup_configuration;
+use configuration::{setup_configuration, Configuration};
 use database_metrics::start_database_metrics;
-use databases::{setup_quasar_database, setup_stellar_node_database};
+use databases::{setup_quasar_database, QuasarDatabase};
 use futures::{
     channel::mpsc::{channel, Receiver, Sender},
     SinkExt, StreamExt,
 };
-use ingestion::ingest;
+use log::debug;
 use logger::setup_logger;
+use migration::OnConflict;
 use notify::{
     event::ModifyKind, Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher,
 };
 use prometheus::Registry;
+use quasar_entities::{account, contract};
+use sea_orm::EntityTrait;
 use server::serve;
 use stellar_xdr::curr::{
     self, BucketEntry, LedgerEntry, LedgerHeader, Limited, Limits, ReadXdr, Type, TypeVariant,
 };
 use tokio::spawn;
 
-mod bytes;
 mod configuration;
 mod database_metrics;
 mod databases;
-mod ingestion;
+// mod ingestion;
 mod logger;
 mod metrics;
 mod schema;
@@ -51,17 +53,10 @@ struct Args {
     /// Database URL to use as a backend
     #[arg(short, long)]
     database_url: Option<String>,
-
-    /// Stellar node URL to ingest data from
-    #[arg(short, long)]
-    stellar_node_database_url: Option<String>,
 }
 
 fn async_watcher() -> notify::Result<(RecommendedWatcher, Receiver<notify::Result<Event>>)> {
     let (mut tx, rx) = channel(1);
-
-    // Automatically select the best implementation for your platform.
-    // You can also access each implementation directly e.g. INotifyWatcher.
     let watcher = RecommendedWatcher::new(
         move |res| {
             futures::executor::block_on(async {
@@ -76,9 +71,6 @@ fn async_watcher() -> notify::Result<(RecommendedWatcher, Receiver<notify::Resul
 
 async fn async_watch<P: AsRef<Path>>(path: P, mut sender: Sender<Type>) -> notify::Result<()> {
     let (mut watcher, mut rx) = async_watcher()?;
-
-    // Add a path to be watched. All files and directories at that path and
-    // below will be monitored for changes.
     watcher.watch(path.as_ref(), RecursiveMode::NonRecursive)?;
 
     while let Some(res) = rx.next().await {
@@ -87,7 +79,7 @@ async fn async_watch<P: AsRef<Path>>(path: P, mut sender: Sender<Type>) -> notif
                 let path = &event.paths[0];
                 match read_bucket_entry(&path) {
                     Err(e) => {
-                        // println!("Invalid file {path:?}, Error: {e:?}");
+                        debug!("Invalid file {path:?}, Error: {e:?}");
                     }
                     Ok(res) => {
                         for ty in res {
@@ -96,7 +88,7 @@ async fn async_watch<P: AsRef<Path>>(path: P, mut sender: Sender<Type>) -> notif
                     }
                 }
             }
-            Err(e) => println!("watch error: {:?}", e),
+            Err(e) => debug!("watch error: {:?}", e),
         }
     }
 
@@ -128,63 +120,96 @@ enum Entity {
 
 #[tokio::main]
 async fn main() {
-    let (tx, mut rx) = channel(10);
-    tokio::spawn(async move {
-        async_watch(Path::new("./datadir/core/buckets"), tx)
-            .await
-            .unwrap();
-    });
+    let args = Args::parse();
 
-    while let Some(n) = rx.next().await {
-        println!("{n:?}");
-        // match n {
-        //     Type::BucketEntry(entry) => match entry {
-        //         BucketEntry::Liveentry(e) => match e.data {
-        //             curr::LedgerEntryData::Account(_) => todo!(),
-        //             curr::LedgerEntryData::Trustline(_) => todo!(),
-        //             curr::LedgerEntryData::Offer(_) => todo!(),
-        //             curr::LedgerEntryData::Data(_) => todo!(),
-        //             curr::LedgerEntryData::ClaimableBalance(_) => todo!(),
-        //             curr::LedgerEntryData::LiquidityPool(_) => todo!(),
-        //             curr::LedgerEntryData::ContractData(_) => todo!(),
-        //             curr::LedgerEntryData::ContractCode(_) => todo!(),
-        //             curr::LedgerEntryData::ConfigSetting(_) => todo!(),
-        //             curr::LedgerEntryData::Ttl(_) => todo!(),
-        //         },
-        //         BucketEntry::Initentry(_) => todo!(),
-        //         BucketEntry::Deadentry(_) => todo!(),
-        //         BucketEntry::Metaentry(_) => {}
-        //     },
-        //     _ => unreachable!("We should not get here."),
-        // }
-    }
-    // let args = Args::parse();
+    let configuration = setup_configuration(args);
 
-    // let configuration = setup_configuration(args);
+    setup_logger();
 
-    // setup_logger();
+    let quasar_database = setup_quasar_database(&configuration).await;
 
-    // let quasar_database = setup_quasar_database(&configuration).await;
-    // let node_database = setup_stellar_node_database(&configuration).await;
+    let metrics = Registry::new();
 
-    // let metrics = Registry::new();
-
-    // // Start a background task to collect database metrics
+    // Start a background task to collect database metrics
     // start_database_metrics(
     //     quasar_database.clone(),
     //     metrics.clone(),
     //     configuration.metrics.database_polling_interval,
     // );
+    tokio::join!(
+        setup_watcher(&quasar_database, &configuration),
+        serve(&configuration.api, quasar_database.clone(), metrics.clone())
+    );
+}
 
-    // // Start the HTTP server, including GraphQL API
-    // serve(&configuration.api, quasar_database.clone(), metrics.clone()).await;
+async fn setup_watcher(db: &QuasarDatabase, cfg: &Configuration) {
+    let data_dir = cfg.ingestion.buckets_path.clone();
+    let (tx, mut rx) = channel(10);
+    tokio::spawn(async move {
+        async_watch(Path::new(&data_dir), tx).await.unwrap();
+    });
 
-    // // Start the ingestion loop
-    // ingest(
-    //     node_database,
-    //     quasar_database,
-    //     configuration.ingestion,
-    //     metrics,
-    // )
-    // .await;
+    while let Some(n) = rx.next().await {
+        match n {
+            Type::BucketEntry(entry) => match *entry {
+                BucketEntry::Liveentry(e) => match e.data {
+                    curr::LedgerEntryData::Account(acc) => {
+                        let account: account::ActiveModel =
+                            account::ActiveModel::try_from(acc).unwrap();
+                        account::Entity::insert(account)
+                            .on_conflict(
+                                OnConflict::column(account::Column::Id)
+                                    .update_columns([
+                                        account::Column::LastModified,
+                                        account::Column::Balance,
+                                        account::Column::BuyingLiabilities,
+                                        account::Column::HomeDomain,
+                                        account::Column::InflationDestination,
+                                        account::Column::MasterWeight,
+                                        account::Column::NumberOfSubentries,
+                                        account::Column::SellingLiabilities,
+                                        account::Column::SequenceNumber,
+                                    ])
+                                    .to_owned(),
+                            )
+                            .exec(db.as_inner())
+                            .await
+                            .unwrap();
+                    }
+                    curr::LedgerEntryData::ContractData(entry) => {
+                        let contract: contract::ActiveModel =
+                            contract::ActiveModel::try_from(entry).unwrap();
+                        contract::Entity::insert(contract)
+                            .on_conflict(
+                                OnConflict::column(contract::Column::Address)
+                                    .update_columns([
+                                        contract::Column::LastModified,
+                                        contract::Column::Hash,
+                                        contract::Column::Key,
+                                        contract::Column::Type,
+                                    ])
+                                    .to_owned(),
+                            )
+                            .exec(db.as_inner())
+                            .await
+                            .unwrap();
+                    },
+                    curr::LedgerEntryData::ContractCode(code) => {
+                        debug!("{code:?}");
+                    },
+                    _ => {} // curr::LedgerEntryData::Trustline(_) => todo!(),
+                            // curr::LedgerEntryData::Offer(_) => todo!(),
+                            // curr::LedgerEntryData::Data(_) => todo!(),
+                            // curr::LedgerEntryData::ClaimableBalance(_) => todo!(),
+                            // curr::LedgerEntryData::LiquidityPool(_) => todo!(),
+
+                            
+                            // curr::LedgerEntryData::ConfigSetting(_) => todo!(),
+                            // curr::LedgerEntryData::Ttl(_) => todo!(),
+                },
+                _ => {}
+            },
+            _ => unreachable!("We should not get here."),
+        }
+    }
 }

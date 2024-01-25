@@ -37,12 +37,8 @@ pub(super) async fn serve(api: &Api, database: QuasarDatabase, metrics: Registry
 
     let socket_addr = (api.host, api.port).into();
 
-    tokio::spawn(async move {
-        axum::Server::bind(&socket_addr)
-            .serve(app.into_make_service())
-            .await
-            .unwrap();
-    });
-
-    info!("API started on {}", socket_addr);
+    axum::Server::bind(&socket_addr)
+        .serve(app.into_make_service())
+        .await
+        .unwrap();
 }

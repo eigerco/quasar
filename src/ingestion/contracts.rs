@@ -5,14 +5,14 @@ use sea_orm::{ColumnTrait, DatabaseConnection, DbErr, EntityTrait, QueryFilter, 
 // use stellar_node_entities::{contractdata, prelude::Contractdata};
 
 use crate::{
-    databases::{NodeDatabase, QuasarDatabase},
+    databases::{QuasarDatabase},
     ingestion::IngestionError,
 };
 
 use super::IngestionMetrics;
 
 pub(super) async fn ingest_contracts(
-    node_database: &NodeDatabase,
+    // node_database: &NodeDatabase,
     quasar_database: &QuasarDatabase,
     metrics: &IngestionMetrics,
 ) -> Result<(), IngestionError> {

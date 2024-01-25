@@ -1,4 +1,4 @@
-use crate::databases::{NodeDatabase, QuasarDatabase};
+use crate::databases::QuasarDatabase;
 
 use super::{IngestionError, IngestionMetrics};
 use log::info;
@@ -8,7 +8,6 @@ use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 // use stellar_node_entities::{accounts, prelude::Accounts};
 
 pub(super) async fn ingest_accounts(
-    node_database: &NodeDatabase,
     quasar_database: &QuasarDatabase,
     ledger_sequence: i32,
     metrics: &IngestionMetrics,

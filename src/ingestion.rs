@@ -6,8 +6,8 @@ use thiserror::Error;
 
 use crate::{
     configuration::Ingestion,
-    databases::{NodeDatabase, QuasarDatabase},
-    ingestion::ledgers::{ingest_ledgers, new_ledgers_available, IngestionNeeded},
+    // databases::{NodeDatabase, QuasarDatabase},
+    // ingestion::ledgers::{ingest_ledgers, new_ledgers_available, IngestionNeeded},
 };
 
 mod accounts;
@@ -39,46 +39,46 @@ pub(super) struct IngestionMetrics {
     pub events: IntCounter,
 }
 
-pub(super) async fn ingest(
-    node_database: NodeDatabase,
-    quasar_database: QuasarDatabase,
-    ingestion: Ingestion,
-    metrics: Registry,
-) {
-    let ingestion_metrics = setup_ingestion_metrics(&metrics);
+// pub(super) async fn ingest(
+//     node_database: NodeDatabase,
+//     quasar_database: QuasarDatabase,
+//     ingestion: Ingestion,
+//     metrics: Registry,
+// ) {
+//     let ingestion_metrics = setup_ingestion_metrics(&metrics);
 
-    loop {
-        sleep(&ingestion).await;
+//     loop {
+//         sleep(&ingestion).await;
 
-        let ingestion_needed = new_ledgers_available(&node_database, &quasar_database).await;
+//         let ingestion_needed = new_ledgers_available(&node_database, &quasar_database).await;
 
-        match ingestion_needed {
-            Ok(IngestionNeeded::Yes {
-                last_ingested_ledger_sequence,
-            }) => {
-                debug!("New ledgers available");
-                let ingestion_result = ingest_ledgers(
-                    &node_database,
-                    &quasar_database,
-                    last_ingested_ledger_sequence,
-                    &ingestion_metrics,
-                )
-                .await;
+//         match ingestion_needed {
+//             Ok(IngestionNeeded::Yes {
+//                 last_ingested_ledger_sequence,
+//             }) => {
+//                 debug!("New ledgers available");
+//                 let ingestion_result = ingest_ledgers(
+//                     &node_database,
+//                     &quasar_database,
+//                     last_ingested_ledger_sequence,
+//                     &ingestion_metrics,
+//                 )
+//                 .await;
 
-                if let Err(error) = ingestion_result {
-                    error!("Error while ingesting ledgers: {:?}", error);
-                }
-            }
-            Ok(IngestionNeeded::No) => {}
-            Err(error) => {
-                error!("Error while checking for new ledgers: {}", error);
-            }
-        }
-    }
-}
+//                 if let Err(error) = ingestion_result {
+//                     error!("Error while ingesting ledgers: {:?}", error);
+//                 }
+//             }
+//             Ok(IngestionNeeded::No) => {}
+//             Err(error) => {
+//                 error!("Error while checking for new ledgers: {}", error);
+//             }
+//         }
+//     }
+// }
 
 pub async fn sleep(ingestion: &Ingestion) {
-    tokio::time::sleep(tokio::time::Duration::from_secs(ingestion.polling_interval)).await;
+    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
 }
 
 fn setup_ingestion_metrics(metrics: &Registry) -> IngestionMetrics {
