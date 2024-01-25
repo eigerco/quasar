@@ -9,7 +9,7 @@ on:
     branches: ["main"]
 
 jobs:
-  load_docker:
+  pull_docker:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -29,10 +29,11 @@ jobs:
             docker pull postgres
             docker save -o ~/image-cache/postgres.tar postgres
 
-      - if: steps.image-cache.outputs.cache-hit == 'true'
-        run: |
-            docker load -i ~/image-cache/stellar.tar
-            docker load -i ~/image-cache/postgres.tar
+      # - if: steps.image-cache.outputs.cache-hit == 'true'
+      #   run: |
+      #       docker load -i ~/image-cache/stellar.tar
+      #       docker load -i ~/image-cache/postgres.tar
+
   build:
     needs: load_docker
     timeout-minutes: 10
@@ -69,6 +70,15 @@ jobs:
         with:
           command: check
           args: --all-features
+      - name: Load docker images
+        uses: actions/cache@v1
+        with:
+            path: ~/image-cache
+            # add soroban dev version
+            key: image-cache-${{ runner.os }}
+        run: |
+            docker load -i ~/image-cache/stellar.tar
+            docker load -i ~/image-cache/postgres.tar
       - name: Run tests
         uses: actions-rs/cargo@v1
         with:
