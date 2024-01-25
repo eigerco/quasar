@@ -76,14 +76,15 @@ async fn async_watch<P: AsRef<Path>>(path: P, mut sender: Sender<Type>) -> notif
     while let Some(res) = rx.next().await {
         match res {
             Ok(event) => {
-                let path = &event.paths[0];
-                match read_bucket_entry(&path) {
-                    Err(e) => {
-                        debug!("Invalid file {path:?}, Error: {e:?}");
-                    }
-                    Ok(res) => {
-                        for ty in res {
-                            sender.send(ty).await.unwrap();
+                for path in event.paths {
+                    match read_bucket_entry(&path) {
+                        Err(e) => {
+                            debug!("Invalid file {path:?}, Error: {e:?}");
+                        }
+                        Ok(res) => {
+                            for ty in res {
+                                sender.send(ty).await.unwrap();
+                            }
                         }
                     }
                 }
@@ -150,9 +151,10 @@ async fn setup_watcher(db: &QuasarDatabase, cfg: &Configuration) {
     });
 
     while let Some(n) = rx.next().await {
+        println!("{n:?}");
         match n {
             Type::BucketEntry(entry) => match *entry {
-                BucketEntry::Liveentry(e) => match e.data {
+                BucketEntry::Liveentry(e) | BucketEntry::Initentry(e) => match e.data {
                     curr::LedgerEntryData::Account(acc) => {
                         let account: account::ActiveModel =
                             account::ActiveModel::try_from(acc).unwrap();
@@ -193,21 +195,22 @@ async fn setup_watcher(db: &QuasarDatabase, cfg: &Configuration) {
                             .exec(db.as_inner())
                             .await
                             .unwrap();
-                    },
-                    curr::LedgerEntryData::ContractCode(code) => {
-                        debug!("{code:?}");
-                    },
-                    _ => {} // curr::LedgerEntryData::Trustline(_) => todo!(),
-                            // curr::LedgerEntryData::Offer(_) => todo!(),
-                            // curr::LedgerEntryData::Data(_) => todo!(),
-                            // curr::LedgerEntryData::ClaimableBalance(_) => todo!(),
-                            // curr::LedgerEntryData::LiquidityPool(_) => todo!(),
+                    }
+                    
+                    _ => {
+                        println!("Data {:?}", e.data);
+                    } // curr::LedgerEntryData::Trustline(_) => todo!(),
+                      // curr::LedgerEntryData::Offer(_) => todo!(),
+                      // curr::LedgerEntryData::Data(_) => todo!(),
+                      // curr::LedgerEntryData::ClaimableBalance(_) => todo!(),
+                      // curr::LedgerEntryData::LiquidityPool(_) => todo!(),
 
-                            
-                            // curr::LedgerEntryData::ConfigSetting(_) => todo!(),
-                            // curr::LedgerEntryData::Ttl(_) => todo!(),
+                      // curr::LedgerEntryData::ConfigSetting(_) => todo!(),
+                      // curr::LedgerEntryData::Ttl(_) => todo!(),
                 },
-                _ => {}
+                _ => {
+                    println!("Entry {:?}", entry);
+                }
             },
             _ => unreachable!("We should not get here."),
         }
