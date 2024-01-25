@@ -29,11 +29,6 @@ jobs:
             docker pull postgres
             docker save -o ~/image-cache/postgres.tar postgres
 
-      # - if: steps.image-cache.outputs.cache-hit == 'true'
-      #   run: |
-      #       docker load -i ~/image-cache/stellar.tar
-      #       docker load -i ~/image-cache/postgres.tar
-
   build:
     needs: pull_docker
     timeout-minutes: 10
@@ -74,12 +69,13 @@ jobs:
         uses: actions/cache@v1
         with:
             path: ~/image-cache
-            # add soroban dev version
             key: image-cache-${{ runner.os }}
       - name: Load docker images
         run: |
             docker load -i ~/image-cache/stellar.tar
             docker load -i ~/image-cache/postgres.tar
+      - name: Copy config file
+        run: cp config/config.toml.example config/config.toml
       - name: Run tests
         uses: actions-rs/cargo@v1
         with:
