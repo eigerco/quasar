@@ -70,12 +70,13 @@ jobs:
         with:
           command: check
           args: --all-features
-      - name: Load docker images
+      - id: image-cache
         uses: actions/cache@v1
         with:
             path: ~/image-cache
             # add soroban dev version
             key: image-cache-${{ runner.os }}
+      - name: Load docker images
         run: |
             docker load -i ~/image-cache/stellar.tar
             docker load -i ~/image-cache/postgres.tar
