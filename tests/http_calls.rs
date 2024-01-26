@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 #[test]
 fn hitting_localhost() {
-    let params = Params::default();
+    let params = Params::build(0);
     test_with_containers(params.clone(), move || async move {
         let playground_url = &format!("http://127.0.0.1:{}", params.playground_port)[..];
 
@@ -18,14 +18,7 @@ fn hitting_localhost() {
 
 #[test]
 fn query_ledgers_hashes() {
-    let params = Params {
-        quasar_port: 5444,
-        playground_port: 7999,
-        quasar_handle: "quasar_1".to_string(),
-        stellar_port: 8002,
-        stellar_handle: "stellar_1".to_string(),
-        database_name: "quasar_dev1".to_string(),
-    };
+    let params = Params::build(1);
 
     #[derive(serde::Deserialize)]
     #[allow(dead_code)]
@@ -81,15 +74,8 @@ fn query_ledgers_hashes() {
 // TODO to improve
 #[test]
 fn query_accounts_with_filters() {
-    let params = Params {
-        quasar_port: 5443,
-        playground_port: 7998,
-        quasar_handle: "quasar_2".to_string(),
-        stellar_port: 8003,
-        stellar_handle: "stellar_2".to_string(),
-        database_name: "quasar_dev2".to_string(),
-    };
-
+    let params = Params::build(2); 
+    
     #[derive(serde::Deserialize)]
     #[allow(dead_code)]
     struct Account {

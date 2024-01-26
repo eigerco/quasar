@@ -5,7 +5,7 @@ use quasar_indexer::{
     server::serve,
 };
 
-use std::future::Future;
+use std::{future::Future};
 use std::process::Command;
 use std::sync::{Arc, Mutex};
 
@@ -23,7 +23,7 @@ const PLAYGROUND_PORT: u16 = 8000;
 const EXT_QUASAR_PORT: u32 = 5432;
 const QUASAR_HANDLE: &str = "quasar";
 
-const EXT_STELLAR_PORT: u32 = 8001;
+const EXT_STELLAR_PORT: u32 = 9000;
 const STELLAR_HANDLE: &str = "stellar";
 
 const POSTGRES_PASSWORD: &str = "quasar";
@@ -39,15 +39,15 @@ pub struct Params {
     pub database_name: String,
 }
 
-impl Default for Params {
-    fn default() -> Self {
+impl Params {
+    pub fn build(next_val: u32) -> Self {
         Self {
-            quasar_port: EXT_QUASAR_PORT,
-            quasar_handle: QUASAR_HANDLE.to_string(),
-            playground_port: PLAYGROUND_PORT,
-            stellar_port: EXT_STELLAR_PORT,
-            stellar_handle: STELLAR_HANDLE.to_string(),
-            database_name: POSTGRES_DATABASE.to_string(),
+            quasar_port: EXT_QUASAR_PORT + next_val,
+            quasar_handle: format!("{}_{}", QUASAR_HANDLE, 1 + next_val),
+            playground_port: PLAYGROUND_PORT + next_val as u16,
+            stellar_port: EXT_STELLAR_PORT + next_val,
+            stellar_handle: format!("{}_{}", STELLAR_HANDLE, 10 + next_val),
+            database_name: format!("{}_{}", POSTGRES_DATABASE, 100 + next_val),
         }
     }
 }
