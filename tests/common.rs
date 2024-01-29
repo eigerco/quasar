@@ -5,7 +5,7 @@ use quasar_indexer::{
     server::serve,
 };
 
-use std::{future::Future};
+use std::future::Future;
 use std::process::Command;
 use std::sync::{Arc, Mutex};
 
