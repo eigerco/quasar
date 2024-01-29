@@ -14,3 +14,6 @@ stellar-strkey = { git = "https://github.com/stellar/rs-stellar-strkey" }
 soroban-env-host = "20.0.0"
 thiserror.workspace = true
 
+[dev-dependencies]
+serde = { version = "1.0.188", features = ["derive"] }
+

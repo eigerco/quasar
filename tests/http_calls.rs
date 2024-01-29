@@ -1,17 +1,19 @@
 mod common;
 
 use common::{test_with_containers, Params};
+use quasar_entities::ledger;
 use reqwest::StatusCode;
 use std::collections::HashMap;
+
 
 #[test]
 fn hitting_localhost() {
     let params = Params::build(0);
     test_with_containers(params.clone(), move || async move {
         let playground_url = &format!("http://127.0.0.1:{}", params.playground_port)[..];
-
+        
         let res = reqwest::get(playground_url).await.unwrap();
-
+        
         assert_eq!(res.status(), StatusCode::OK);
     });
 }
@@ -20,15 +22,15 @@ fn hitting_localhost() {
 fn query_ledgers_hashes() {
     let params = Params::build(1);
 
-    #[derive(serde::Deserialize)]
-    #[allow(dead_code)]
-    struct Ledger {
-        hash: String,
-    }
+    // #[derive(serde::Deserialize)]
+    // #[allow(dead_code)]
+    // struct Ledger {
+    //     hash: String,
+    // }
 
     #[derive(serde::Deserialize)]
     struct Ledgers {
-        ledgers: Vec<Ledger>,
+        ledgers: Vec<ledger::Model>,
     }
 
     #[derive(serde::Deserialize)]
@@ -64,7 +66,7 @@ fn query_ledgers_hashes() {
         let json_response_body = resp.text().await.unwrap();
 
         let ledgers_data: Data = serde_json::from_str(&json_response_body).unwrap();
-        let ledgers_list: Vec<Ledger> = ledgers_data.data.ledgers;
+        let ledgers_list: Vec<ledger::Model> = ledgers_data.data.ledgers;
 
         // this is directly correlated to the number of cycles
         assert!(ledgers_list.len() > 5);
@@ -74,8 +76,7 @@ fn query_ledgers_hashes() {
 // TODO to improve
 #[test]
 fn query_accounts_with_filters() {
-    let params = Params::build(2); 
-    
+    let params = Params::build(2);
     #[derive(serde::Deserialize)]
     #[allow(dead_code)]
     struct Account {
