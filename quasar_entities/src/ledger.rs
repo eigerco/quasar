@@ -5,9 +5,7 @@ use std::{collections::HashMap, sync::Arc};
 use stellar_node_entities::ledgerheaders;
 use stellar_xdr::curr::{Error, LedgerHeader, Limits, ReadXdr};
 
-#[cfg_attr(test, derive(serde::Deserialize))]
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, async_graphql::SimpleObject)]
-// #[derive(serde::Deserialize)]
 #[sea_orm(table_name = "ledgers")]
 #[graphql(complex)]
 #[graphql(name = "Ledgers")]

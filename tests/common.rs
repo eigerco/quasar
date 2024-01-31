@@ -18,7 +18,9 @@ use std::time::Duration as SyncDuration;
 
 const PASSWORD_LINE: &str = "postgres password: ";
 
-const PLAYGROUND_PORT: u16 = 8000;
+const PLAYGROUND_PORT: u16 = 7000;
+
+const STELLAR_NODE_PORT: u32 = 8000;
 
 const EXT_QUASAR_PORT: u32 = 5432;
 const QUASAR_HANDLE: &str = "quasar";
@@ -34,6 +36,7 @@ pub struct Params {
     pub quasar_port: u32,
     pub stellar_port: u32,
     pub playground_port: u16,
+    pub stellar_node_port: u32,
     pub quasar_handle: String,
     pub stellar_handle: String,
     pub database_name: String,
@@ -45,6 +48,7 @@ impl Params {
             quasar_port: EXT_QUASAR_PORT + next_val,
             quasar_handle: format!("{}_{}", QUASAR_HANDLE, 1 + next_val),
             playground_port: PLAYGROUND_PORT + next_val as u16,
+            stellar_node_port: STELLAR_NODE_PORT + next_val,
             stellar_port: EXT_STELLAR_PORT + next_val,
             stellar_handle: format!("{}_{}", STELLAR_HANDLE, 10 + next_val),
             database_name: format!("{}_{}", POSTGRES_DATABASE, 100 + next_val),
@@ -71,7 +75,7 @@ fn quasar_database_spec(ext_port: u32, db_name: &str, handle: &str) -> TestBodyS
     quasar_proc
 }
 
-fn stellar_node_spec(ext_port: u32, handle: &str) -> TestBodySpecification {
+fn stellar_node_spec(ext_port: u32, stellar_node_port: u32, handle: &str) -> TestBodySpecification {
     let exit_wait = MessageWait {
         // it has to arrive to this point otherwise weird
         // SSH messages will appear
@@ -87,6 +91,7 @@ fn stellar_node_spec(ext_port: u32, handle: &str) -> TestBodySpecification {
         .set_handle(handle);
 
     soroban_proc.modify_port_map(5432, ext_port);
+    soroban_proc.modify_port_map(8000, stellar_node_port);
     soroban_proc.append_cmd("--local");
     soroban_proc.append_cmd("--enable-soroban-rpc");
 
@@ -124,6 +129,7 @@ pub fn test_with_containers<Fut>(
     ))
     .provide_container(stellar_node_spec(
         params.stellar_port,
+        params.stellar_node_port,
         &params.stellar_handle,
     ));
 
