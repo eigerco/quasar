@@ -1,9 +1,7 @@
 use crate::{account, QuasarDataLoader};
 use async_graphql::{dataloader::Loader, ComplexObject, Context};
-use sea_orm::{entity::prelude::*, ActiveValue::NotSet, Condition, Set};
+use sea_orm::{entity::prelude::*, Condition};
 use std::{collections::HashMap, sync::Arc};
-
-use stellar_xdr::curr::{Error, LedgerHeader, Limits, ReadXdr};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, async_graphql::SimpleObject)]
 #[sea_orm(table_name = "ledgers")]

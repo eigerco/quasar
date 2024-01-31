@@ -4,7 +4,6 @@ use stellar_xdr::curr::AccountEntry;
 use thiserror::Error;
 
 use async_graphql::{dataloader::Loader, ComplexObject, Context};
-use base64::{engine::general_purpose, Engine};
 use sea_orm::{entity::prelude::*, ActiveValue::NotSet, Condition, Set};
 use std::sync::Arc;
 

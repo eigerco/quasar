@@ -4,7 +4,7 @@ use sea_orm::{entity::prelude::*, ActiveValue::NotSet};
 use sea_orm::{Condition, Set};
 use std::collections::HashMap;
 use std::sync::Arc;
-use stellar_xdr::curr::{ContractDataEntry, Error, LedgerEntry, Limits, ReadXdr, WriteXdr};
+use stellar_xdr::curr::{ContractDataEntry, Error, Limits, WriteXdr};
 
 use crate::{event, QuasarDataLoader};
 

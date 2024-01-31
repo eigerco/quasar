@@ -1,19 +1,28 @@
-use log::{debug, error};
+use futures::{
+    channel::mpsc::{channel, Receiver, Sender},
+    SinkExt, StreamExt,
+};
+use log::{debug, error, warn};
 use prometheus::{IntCounter, Registry};
 use quasar_entities::{account::AccountError, event::EventError};
 use sea_orm::DbErr;
+use std::{fs::File, path::Path};
 use thiserror::Error;
 
 use crate::{
-    configuration::Ingestion,
-    // databases::{NodeDatabase, QuasarDatabase},
-    // ingestion::ledgers::{ingest_ledgers, new_ledgers_available, IngestionNeeded},
+    configuration::{Configuration, Ingestion},
+    databases::QuasarDatabase,
+    ingestion::accounts::ingest_account,
 };
+use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
+use stellar_xdr::curr::{self, BucketEntry, Limited, Limits, Type, TypeVariant};
+
+use self::contracts::ingest_contract;
 
 mod accounts;
 mod contracts;
 mod events;
-mod ledgers;
+// mod ledgers;
 mod operations;
 mod transactions;
 
@@ -39,43 +48,98 @@ pub(super) struct IngestionMetrics {
     pub events: IntCounter,
 }
 
-// pub(super) async fn ingest(
-//     node_database: NodeDatabase,
-//     quasar_database: QuasarDatabase,
-//     ingestion: Ingestion,
-//     metrics: Registry,
-// ) {
-//     let ingestion_metrics = setup_ingestion_metrics(&metrics);
+pub async fn run_watcher(db: &QuasarDatabase, cfg: &Configuration, metrics: Registry) {
+    let data_dir = cfg.ingestion.buckets_path.clone();
+    let (tx, mut rx) = channel(10);
+    tokio::spawn(async move {
+        async_watch(Path::new(&data_dir), tx).await.unwrap();
+    });
 
-//     loop {
-//         sleep(&ingestion).await;
+    while let Some(bucket) = rx.next().await {
+        if let Err(e) = ingest_next(db, bucket, metrics.clone()).await {
+            warn!("Ingestion error: {e:?}")
+        }
+    }
+}
 
-//         let ingestion_needed = new_ledgers_available(&node_database, &quasar_database).await;
+async fn ingest_next(
+    db: &QuasarDatabase,
+    bucket: Type,
+    metrics: Registry,
+) -> Result<(), IngestionError> {
+    match bucket {
+        Type::BucketEntry(entry) => match *entry {
+            BucketEntry::Liveentry(e) | BucketEntry::Initentry(e) => match e.data {
+                curr::LedgerEntryData::Account(acc) => {
+                    ingest_account(db, acc).await?;
+                }
 
-//         match ingestion_needed {
-//             Ok(IngestionNeeded::Yes {
-//                 last_ingested_ledger_sequence,
-//             }) => {
-//                 debug!("New ledgers available");
-//                 let ingestion_result = ingest_ledgers(
-//                     &node_database,
-//                     &quasar_database,
-//                     last_ingested_ledger_sequence,
-//                     &ingestion_metrics,
-//                 )
-//                 .await;
+                curr::LedgerEntryData::ContractData(contract) => {
+                    ingest_contract(db, contract).await?;
+                }
 
-//                 if let Err(error) = ingestion_result {
-//                     error!("Error while ingesting ledgers: {:?}", error);
-//                 }
-//             }
-//             Ok(IngestionNeeded::No) => {}
-//             Err(error) => {
-//                 error!("Error while checking for new ledgers: {}", error);
-//             }
-//         }
-//     }
-// }
+                _ => {
+                    log::trace!("Unprocessed ledger entry: {:?}", e);
+                }
+            },
+            _ => {
+                log::trace!("Metadata {:?}", entry);
+            }
+        },
+        _ => unreachable!("We should not get here."),
+    }
+    Ok(())
+}
+fn async_watcher() -> notify::Result<(RecommendedWatcher, Receiver<notify::Result<Event>>)> {
+    let (mut tx, rx) = channel(1);
+    let watcher = RecommendedWatcher::new(
+        move |res| {
+            futures::executor::block_on(async {
+                tx.send(res).await.unwrap();
+            });
+        },
+        Config::default(),
+    )?;
+
+    Ok((watcher, rx))
+}
+
+async fn async_watch<P: AsRef<Path>>(path: P, mut sender: Sender<Type>) -> notify::Result<()> {
+    let (mut watcher, mut rx) = async_watcher()?;
+    watcher.watch(path.as_ref(), RecursiveMode::NonRecursive)?;
+
+    while let Some(res) = rx.next().await {
+        match res {
+            Ok(event) => {
+                for path in event.paths {
+                    match read_bucket_entry(&path) {
+                        Err(e) => {
+                            debug!("Invalid file {path:?}, Error: {e:?}");
+                        }
+                        Ok(res) => {
+                            for ty in res {
+                                sender.send(ty).await.unwrap();
+                            }
+                        }
+                    }
+                }
+            }
+            Err(e) => debug!("watch error: {:?}", e),
+        }
+    }
+
+    Ok(())
+}
+
+fn read_bucket_entry(file: &Path) -> Result<Vec<Type>, curr::Error> {
+    match File::open(file) {
+        Ok(res) => {
+            let mut f = Limited::new(Box::new(res), Limits::none());
+            Type::read_xdr_framed_iter(TypeVariant::BucketEntry, &mut f).collect()
+        }
+        Err(err) => Err(curr::Error::Io(err)),
+    }
+}
 
 pub async fn sleep(ingestion: &Ingestion) {
     tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;

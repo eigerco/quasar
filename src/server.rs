@@ -6,7 +6,6 @@ use axum::{
     Router,
 };
 use axum_prometheus::PrometheusMetricLayer;
-use log::info;
 use prometheus::Registry;
 
 use crate::{
