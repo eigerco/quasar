@@ -1,10 +1,10 @@
 mod common;
 
 use common::{test_with_containers, Params};
-use quasar_entities::ledger;
+use quasar_indexer::{ingestion::sleep, configuration::Ingestion};
 use reqwest::StatusCode;
 use std::collections::HashMap;
-
+use stellar_sdk::Keypair;
 
 #[test]
 fn hitting_localhost() {
@@ -21,22 +21,6 @@ fn hitting_localhost() {
 #[test]
 fn query_ledgers_hashes() {
     let params = Params::build(1);
-
-    // #[derive(serde::Deserialize)]
-    // #[allow(dead_code)]
-    // struct Ledger {
-    //     hash: String,
-    // }
-
-    #[derive(serde::Deserialize)]
-    struct Ledgers {
-        ledgers: Vec<ledger::Model>,
-    }
-
-    #[derive(serde::Deserialize)]
-    struct Data {
-        data: Ledgers,
-    }
 
     let query_text = r#"
         {
@@ -65,11 +49,12 @@ fn query_ledgers_hashes() {
 
         let json_response_body = resp.text().await.unwrap();
 
-        let ledgers_data: Data = serde_json::from_str(&json_response_body).unwrap();
-        let ledgers_list: Vec<ledger::Model> = ledgers_data.data.ledgers;
-
-        // this is directly correlated to the number of cycles
-        assert!(ledgers_list.len() > 5);
+        let json_data: serde_json::Value = serde_json::from_str(&json_response_body).unwrap();
+        assert!(json_data.is_object());
+        let data = json_data.as_object().unwrap().get("data").unwrap();
+        let ledgers = data.get("ledgers").unwrap();
+        assert!(ledgers.is_array());
+        assert!(ledgers.as_array().unwrap().len() > 5);
     });
 }
 
@@ -77,57 +62,25 @@ fn query_ledgers_hashes() {
 #[test]
 fn query_accounts_with_filters() {
     let params = Params::build(2);
-    #[derive(serde::Deserialize)]
-    #[allow(dead_code)]
-    struct Account {
-        balance: u32,
-    }
-
-    #[derive(serde::Deserialize)]
-    struct Accounts {
-        accounts: Vec<Account>,
-    }
-
-    #[derive(serde::Deserialize)]
-    struct Data {
-        data: Accounts,
-    }
-
-    let query_text = r#"
-        query {
-            accounts(
-                sort: {
-                    balance: ASC
-                }
-                filter: {
-                    balance: {
-                        op: GREATER_THAN
-                        value: 1
-                    }
-                    buyingLiabilities: {
-                        op: GREATER_THAN
-                        value: 1
-                    }
-                    sellingLiabilities: {
-                        op: GREATER_THAN
-                        value: 1
-                    }
-                    sequenceNumber: {
-                        op: GREATER_THAN
-                        value: 1
-                    }
-                }
-                pagination: {
-                    perPage: 2
-                    page: 1
-                }
-            ) {
-                id
-            }
-        }"#;
-
+    
     test_with_containers(params.clone(), move || async move {
         let client = reqwest::Client::new();
+        
+        let public_key = create_account(&params, &client).await;
+
+        println!("pk {}", public_key);
+
+        let query_text = format!(r#"
+            query {{
+                account(
+                    id: "{}"
+                ) {{
+                    id
+                }}
+            }}"#, public_key);
+
+        let ingestion = Ingestion{polling_interval: 5};
+        sleep(&ingestion).await;
 
         let mut query = HashMap::new();
         // probably need a custom value struct to add this
@@ -145,11 +98,27 @@ fn query_accounts_with_filters() {
         assert_eq!(resp.status(), reqwest::StatusCode::OK);
 
         let json_response_body = resp.text().await.unwrap();
-
-        let accounts_data: Data = serde_json::from_str(&json_response_body).unwrap();
-        let accounts_list: Vec<Account> = accounts_data.data.accounts;
-
-        // this is directly correlated to the number of cycles
-        assert!(accounts_list.len() == 0);
+        let json_data: serde_json::Value = serde_json::from_str(&json_response_body).unwrap();
+        assert!(json_data.is_object());
+        let data = json_data.as_object().unwrap().get("data").unwrap();
+        println!("data {}", json_data);
+        let accounts = data.get("account").unwrap();
+        assert!(accounts.is_array());
+        println!("acc: {}", accounts.as_array().unwrap().len());
+        for account in accounts.as_array().unwrap() {
+            print!("ac: {}", account);
+        }
+        assert_eq!(accounts.as_array().unwrap().len(), 1);
     });
+}
+
+async fn create_account(params: &Params, client: &reqwest::Client) -> String {
+        
+    let key_pair = Keypair::random().unwrap();
+
+    let req = client.get(format!("http://127.0.0.1:{}/friendbot?addr={}", params.stellar_node_port, key_pair.public_key()));
+    let resp = req.send().await.unwrap();
+    assert_eq!(resp.status(), reqwest::StatusCode::OK);
+
+    key_pair.public_key()
 }
