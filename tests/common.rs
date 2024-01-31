@@ -1,5 +1,5 @@
 use quasar_indexer::{
-    configuration::setup_configuration,
+    configuration::{setup_configuration, Configuration},
     databases::{setup_quasar_database, setup_stellar_node_database},
     ingestion::ingest,
     server::serve,
@@ -115,7 +115,7 @@ fn get_password_from_logs(container_name: &str) -> String {
 
 pub fn test_with_containers<Fut>(
     params: Params,
-    running_test: impl FnOnce() -> Fut + Send + 'static,
+    running_test: impl FnOnce(Configuration) -> Fut + Send + 'static,
 ) where
     Fut: Future<Output = ()> + Send + 'static,
 {
@@ -197,7 +197,7 @@ pub fn test_with_containers<Fut>(
 
         println!("after ingest!");
 
-        running_test().await;
+        running_test(configuration).await;
 
         let mut ran = has_ran_test.lock().unwrap();
         *ran = true;
