@@ -1,14 +1,17 @@
 use log::info;
 use migration::OnConflict;
 use quasar_entities::contract;
-use sea_orm::{ActiveModelTrait, EntityTrait};
+use sea_orm::EntityTrait;
 use stellar_xdr::curr::ContractDataEntry;
 
 use crate::databases::QuasarDatabase;
 
 use super::IngestionError;
 
-pub async fn ingest_contract(database: &QuasarDatabase, contract: ContractDataEntry) -> Result<i32, IngestionError> {
+pub async fn ingest_contract(
+    database: &QuasarDatabase,
+    contract: ContractDataEntry,
+) -> Result<i32, IngestionError> {
     let sequence = 1;
     info!("Ingesting contract since {}", sequence);
     let contract: contract::ActiveModel = contract::ActiveModel::try_from(contract).unwrap();

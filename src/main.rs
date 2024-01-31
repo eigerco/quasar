@@ -19,7 +19,7 @@ use logger::setup_logger;
 use prometheus::Registry;
 use server::serve;
 
-use crate::{configuration::setup_configuration, databases::setup_quasar_database};
+use crate::{configuration::setup_configuration, database_metrics::start_database_metrics, databases::setup_quasar_database};
 
 mod configuration;
 mod database_metrics;
@@ -38,19 +38,6 @@ struct Args {
     database_url: Option<String>,
 }
 
-enum Entity {
-    Account,
-    TrustLine,
-    Offer,
-    Data,
-    ContractCode,
-    ContractData,
-    // Not resolved, but are related and should need TX to be decodable
-    Transaction,
-    Operation,
-    Event,
-}
-
 #[tokio::main]
 async fn main() {
     let args = Args::parse();
@@ -64,11 +51,11 @@ async fn main() {
     let metrics = Registry::new();
 
     // Start a background task to collect database metrics
-    // start_database_metrics(
-    //     quasar_database.clone(),
-    //     metrics.clone(),
-    //     configuration.metrics.database_polling_interval,
-    // );
+    start_database_metrics(
+        quasar_database.clone(),
+        metrics.clone(),
+        configuration.metrics.database_polling_interval,
+    );
     tokio::join!(
         ingestion::run_watcher(&quasar_database, &configuration, metrics.clone()),
         serve(&configuration.api, quasar_database.clone(), metrics.clone())

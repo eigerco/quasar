@@ -39,6 +39,8 @@ pub enum IngestionError {
     #[error("Event error: {0}")]
     EventError(#[from] EventError),
 }
+
+#[derive(Debug, Clone)]
 pub(super) struct IngestionMetrics {
     pub ledgers: IntCounter,
     pub accounts: IntCounter,
@@ -55,8 +57,11 @@ pub async fn run_watcher(db: &QuasarDatabase, cfg: &Configuration, metrics: Regi
         async_watch(Path::new(&data_dir), tx).await.unwrap();
     });
 
+    let ingestion_metrics: IngestionMetrics = setup_ingestion_metrics(&metrics);
+
     while let Some(bucket) = rx.next().await {
-        if let Err(e) = ingest_next(db, bucket, metrics.clone()).await {
+        if let Err(e) = ingest_next(db, bucket, ingestion_metrics.clone()).await {
+            ingestion_metrics.ledgers.inc();
             warn!("Ingestion error: {e:?}")
         }
     }
@@ -65,17 +70,19 @@ pub async fn run_watcher(db: &QuasarDatabase, cfg: &Configuration, metrics: Regi
 async fn ingest_next(
     db: &QuasarDatabase,
     bucket: Type,
-    metrics: Registry,
+    metrics: IngestionMetrics,
 ) -> Result<(), IngestionError> {
     match bucket {
         Type::BucketEntry(entry) => match *entry {
             BucketEntry::Liveentry(e) | BucketEntry::Initentry(e) => match e.data {
                 curr::LedgerEntryData::Account(acc) => {
                     ingest_account(db, acc).await?;
+                    metrics.accounts.inc();
                 }
 
                 curr::LedgerEntryData::ContractData(contract) => {
                     ingest_contract(db, contract).await?;
+                    metrics.contracts.inc();
                 }
 
                 _ => {
@@ -141,7 +148,7 @@ fn read_bucket_entry(file: &Path) -> Result<Vec<Type>, curr::Error> {
     }
 }
 
-pub async fn sleep(ingestion: &Ingestion) {
+pub async fn sleep(_ingestion: &Ingestion) {
     tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
 }
 

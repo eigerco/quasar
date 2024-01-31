@@ -1,5 +1,5 @@
 use quasar_entities::transaction;
-use sea_orm::{ActiveModelTrait, EntityTrait, Set};
+use sea_orm::{ActiveModelTrait, Set};
 use stellar_xdr::curr::{Limits, ReadXdr, TransactionEnvelope, TransactionMeta};
 
 use crate::databases::QuasarDatabase;
