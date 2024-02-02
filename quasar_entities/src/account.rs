@@ -1,12 +1,11 @@
 use std::collections::HashMap;
 
+use stellar_xdr::curr::AccountEntry;
 use thiserror::Error;
 
 use async_graphql::{dataloader::Loader, ComplexObject, Context};
-use base64::{engine::general_purpose, Engine};
 use sea_orm::{entity::prelude::*, ActiveValue::NotSet, Condition, Set};
 use std::sync::Arc;
-use stellar_node_entities::accounts;
 
 use crate::{ledger, transaction, QuasarDataLoader};
 
@@ -94,14 +93,13 @@ pub enum AccountError {
     DatabaseError(#[from] Arc<sea_orm::DbErr>),
 }
 
-impl TryFrom<accounts::Model> for ActiveModel {
+impl TryFrom<AccountEntry> for ActiveModel {
     type Error = AccountError;
 
-    fn try_from(accounts: accounts::Model) -> Result<Self, Self::Error> {
-        let home_domain =
-            String::from_utf8(general_purpose::STANDARD.decode(accounts.homedomain)?)?;
+    fn try_from(account: AccountEntry) -> Result<Self, Self::Error> {
+        let home_domain = account.home_domain.to_string();
 
-        let thresholds_base64_decoded = general_purpose::STANDARD.decode(accounts.thresholds)?;
+        let thresholds_base64_decoded = account.thresholds;
 
         let (master_weight, threshold_low, threshold_medium, threshold_high) = if let [master_weight, threshold_low, threshold_medium, threshold_high] =
             thresholds_base64_decoded.as_slice()
@@ -117,19 +115,19 @@ impl TryFrom<accounts::Model> for ActiveModel {
         };
 
         Ok(Self {
-            id: Set(accounts.accountid),
-            balance: Set(accounts.balance),
-            buying_liabilities: Set(accounts.buyingliabilities),
-            selling_liabilities: Set(accounts.sellingliabilities),
-            sequence_number: Set(accounts.seqnum),
-            number_of_subentries: Set(accounts.numsubentries),
-            inflation_destination: Set(accounts.inflationdest),
+            id: Set(account.account_id.to_string()),
+            balance: Set(account.balance),
+            buying_liabilities: Set(None),
+            selling_liabilities: Set(None),
+            sequence_number: Set(account.seq_num.into()),
+            number_of_subentries: Set(account.num_sub_entries.try_into().unwrap()),
+            inflation_destination: Set(account.inflation_dest.map(|i| i.to_string())),
             home_domain: Set(home_domain),
             master_weight: Set(*master_weight as i16),
             threshold_low: Set(*threshold_low as i16),
             threshold_medium: Set(*threshold_medium as i16),
             threshold_high: Set(*threshold_high as i16),
-            last_modified: Set(accounts.lastmodified),
+            last_modified: Set(0), //Now
             created_at: NotSet,
         })
     }

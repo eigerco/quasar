@@ -13,14 +13,16 @@
     clippy::todo
 )]
 
-use clap::{command, Parser};
-use configuration::setup_configuration;
-use database_metrics::start_database_metrics;
-use databases::{setup_quasar_database, setup_stellar_node_database};
-use ingestion::ingest;
+use clap::Parser;
 use logger::setup_logger;
+
 use prometheus::Registry;
 use server::serve;
+
+use crate::{
+    configuration::setup_configuration, database_metrics::start_database_metrics,
+    databases::setup_quasar_database,
+};
 
 mod configuration;
 mod database_metrics;
@@ -37,10 +39,6 @@ struct Args {
     /// Database URL to use as a backend
     #[arg(short, long)]
     database_url: Option<String>,
-
-    /// Stellar node URL to ingest data from
-    #[arg(short, long)]
-    stellar_node_database_url: Option<String>,
 }
 
 #[tokio::main]
@@ -52,7 +50,6 @@ async fn main() {
     setup_logger();
 
     let quasar_database = setup_quasar_database(&configuration).await;
-    let node_database = setup_stellar_node_database(&configuration).await;
 
     let metrics = Registry::new();
 
@@ -62,16 +59,8 @@ async fn main() {
         metrics.clone(),
         configuration.metrics.database_polling_interval,
     );
-
-    // Start the HTTP server, including GraphQL API
-    serve(&configuration.api, quasar_database.clone(), metrics.clone()).await;
-
-    // Start the ingestion loop
-    ingest(
-        node_database,
-        quasar_database,
-        configuration.ingestion,
-        metrics,
-    )
-    .await;
+    tokio::join!(
+        ingestion::run_watcher(&quasar_database, &configuration, metrics.clone()),
+        serve(&configuration.api, quasar_database.clone(), metrics.clone())
+    );
 }

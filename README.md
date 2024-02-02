@@ -26,10 +26,9 @@ Here is an example:
 
 ```toml
 quasar_database_url = "postgres://postgres:postgres@localhost:5432/quasar_development"
-stellar_node_database_url = "postgres://stellar:<password>@localhost:8001/core"
 
 [ingestion]
-polling_interval = 5
+buckets-path = "./data/core/buckets"
 
 [api]
 host = "127.0.0.1"

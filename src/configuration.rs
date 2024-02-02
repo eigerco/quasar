@@ -7,7 +7,7 @@ use crate::Args;
 
 #[derive(Debug, Default, Deserialize, PartialEq, Eq)]
 pub struct Ingestion {
-    pub polling_interval: u64,
+    pub buckets_path: String,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
@@ -28,7 +28,6 @@ pub struct Api {
 pub struct Configuration {
     pub quasar_database_url: Option<String>,
     pub stellar_node_database_url: Option<String>,
-
     pub ingestion: Ingestion,
     pub api: Api,
     pub metrics: Metrics,
@@ -44,12 +43,6 @@ pub(super) fn setup_configuration(args: Args) -> Configuration {
         config_builder = config_builder
             .set_override("database_url", database_url)
             .expect("Failed to set database_url");
-    }
-
-    if let Some(stellar_node_database_url) = args.stellar_node_database_url {
-        config_builder = config_builder
-            .set_override("stellar_node_database_url", stellar_node_database_url)
-            .expect("Failed to set stellar_node_database_url");
     }
 
     let configuration = config_builder
