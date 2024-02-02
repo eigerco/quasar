@@ -29,13 +29,13 @@ mod transactions;
 #[derive(Error, Debug)]
 pub enum IngestionError {
     #[error("Database error: {0}")]
-    DbError(#[from] DbErr),
+    Db(#[from] DbErr),
     #[error("XDR decoding error: {0}")]
-    XdrError(#[from] stellar_xdr::curr::Error),
+    Xdr(#[from] stellar_xdr::curr::Error),
     #[error("Account error: {0}")]
-    AccountError(#[from] AccountError),
+    Account(#[from] AccountError),
     #[error("Event error: {0}")]
-    EventError(#[from] EventError),
+    Event(#[from] EventError),
 }
 
 #[derive(Debug, Clone)]
@@ -49,7 +49,7 @@ pub(super) struct IngestionMetrics {
 }
 
 pub async fn run_watcher(db: &QuasarDatabase, cfg: &Configuration, metrics: Registry) {
-    let node_database = setup_stellar_node_database(&cfg).await;
+    let node_database = setup_stellar_node_database(cfg).await;
     let data_dir = cfg.ingestion.buckets_path.clone();
     let (tx, mut rx) = channel(10);
     tokio::spawn(async move {
