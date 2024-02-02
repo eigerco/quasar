@@ -24,7 +24,7 @@ clap = { version = "4.4.2", features = ["derive"] }
 config = "0.13.3"
 log = "0.4.20"
 log4rs = "1.2.0"
-prometheus = { version = "0.13.3", features = ["process"] }
+prometheus = { version = "0.13", features = ["process"] }
 quasar_entities = { path = "quasar_entities" }
 quasar_migrations = { path = "quasar_migrations" }
 sea-orm = { workspace = true, features = ["sqlx-postgres", "runtime-tokio-rustls"] }
@@ -33,3 +33,9 @@ stellar_node_entities = { path = "stellar_node_entities" }
 stellar-xdr = { workspace = true, features = ["base64"] }
 thiserror.workspace = true
 tokio = { version = "1.32.0", features = ["full"] }
+
+[dev-dependencies]
+dockertest = "0.4.0"
+reqwest = { version = "0.11", features = ["json"] }
+serde_json = "1"
+stellar_sdk = "0.1.4"
