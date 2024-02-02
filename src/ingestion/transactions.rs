@@ -1,20 +1,41 @@
+use log::info;
 use quasar_entities::transaction;
-use sea_orm::{ActiveModelTrait, Set};
+use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
 use stellar_xdr::curr::{Limits, ReadXdr, TransactionEnvelope, TransactionMeta};
 
-use crate::databases::QuasarDatabase;
+use crate::databases::{NodeDatabase, QuasarDatabase};
 
 use super::{
     events::ingest_events, operations::ingest_operations, IngestionError, IngestionMetrics,
 };
 
-pub struct Transaction {
-    pub txid: String,
-    pub ledgerseq: i32,
-    pub txindex: i32,
-    pub txbody: String,
-    pub txresult: String,
-    pub txmeta: String,
+use quasar_entities::txhistory::Entity;
+pub use quasar_entities::txhistory::Model as Transaction;
+
+pub(super) async fn ingest_transactions(
+    node_database: &NodeDatabase,
+    quasar_database: &QuasarDatabase,
+    ledger_sequence: u32,
+    metrics: &IngestionMetrics,
+) -> Result<(), IngestionError> {
+    // Query all transactions with lastmodified = ledger_sequence
+    let updated_transactions = Entity::find()
+        .filter(quasar_entities::txhistory::Column::Ledgerseq.eq(ledger_sequence))
+        .all(node_database.as_inner())
+        .await?;
+
+    let count = updated_transactions.len();
+
+    // Ingest all updated transactions
+    for transaction in updated_transactions {
+        ingest_transaction(quasar_database, transaction, metrics).await?;
+
+        metrics.transactions.inc();
+    }
+
+    info!("Ingested {} transactions", count);
+
+    Ok(())
 }
 
 pub(super) async fn ingest_transaction(

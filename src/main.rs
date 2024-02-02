@@ -19,7 +19,10 @@ use logger::setup_logger;
 use prometheus::Registry;
 use server::serve;
 
-use crate::{configuration::setup_configuration, database_metrics::start_database_metrics, databases::setup_quasar_database};
+use crate::{
+    configuration::setup_configuration, database_metrics::start_database_metrics,
+    databases::setup_quasar_database,
+};
 
 mod configuration;
 mod database_metrics;

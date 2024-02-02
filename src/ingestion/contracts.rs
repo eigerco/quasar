@@ -1,4 +1,3 @@
-use log::info;
 use migration::OnConflict;
 use quasar_entities::contract;
 use sea_orm::EntityTrait;
@@ -11,9 +10,7 @@ use super::IngestionError;
 pub async fn ingest_contract(
     database: &QuasarDatabase,
     contract: ContractDataEntry,
-) -> Result<i32, IngestionError> {
-    let sequence = 1;
-    info!("Ingesting contract since {}", sequence);
+) -> Result<(), IngestionError> {
     let contract: contract::ActiveModel = contract::ActiveModel::try_from(contract).unwrap();
     contract::Entity::insert(contract)
         .on_conflict(
@@ -28,5 +25,5 @@ pub async fn ingest_contract(
         )
         .exec(&**database)
         .await?;
-    Ok(sequence)
+    Ok(())
 }

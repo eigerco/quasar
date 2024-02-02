@@ -10,14 +10,14 @@ use std::{fs::File, path::Path};
 use thiserror::Error;
 
 use crate::{
-    configuration::{Configuration, Ingestion},
-    databases::QuasarDatabase,
+    configuration::Configuration,
+    databases::{setup_stellar_node_database, NodeDatabase, QuasarDatabase},
     ingestion::accounts::ingest_account,
 };
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use stellar_xdr::curr::{self, BucketEntry, Limited, Limits, Type, TypeVariant};
 
-use self::contracts::ingest_contract;
+use self::{contracts::ingest_contract, transactions::ingest_transactions};
 
 mod accounts;
 mod contracts;
@@ -30,8 +30,6 @@ mod transactions;
 pub enum IngestionError {
     #[error("Database error: {0}")]
     DbError(#[from] DbErr),
-    #[error("Missing ledger sequence")]
-    MissingLedgerSequence,
     #[error("XDR decoding error: {0}")]
     XdrError(#[from] stellar_xdr::curr::Error),
     #[error("Account error: {0}")]
@@ -51,6 +49,7 @@ pub(super) struct IngestionMetrics {
 }
 
 pub async fn run_watcher(db: &QuasarDatabase, cfg: &Configuration, metrics: Registry) {
+    let node_database = setup_stellar_node_database(&cfg).await;
     let data_dir = cfg.ingestion.buckets_path.clone();
     let (tx, mut rx) = channel(10);
     tokio::spawn(async move {
@@ -60,7 +59,7 @@ pub async fn run_watcher(db: &QuasarDatabase, cfg: &Configuration, metrics: Regi
     let ingestion_metrics: IngestionMetrics = setup_ingestion_metrics(&metrics);
 
     while let Some(bucket) = rx.next().await {
-        if let Err(e) = ingest_next(db, bucket, ingestion_metrics.clone()).await {
+        if let Err(e) = ingest_next(db, &node_database, bucket, ingestion_metrics.clone()).await {
             ingestion_metrics.ledgers.inc();
             warn!("Ingestion error: {e:?}")
         }
@@ -69,34 +68,44 @@ pub async fn run_watcher(db: &QuasarDatabase, cfg: &Configuration, metrics: Regi
 
 async fn ingest_next(
     db: &QuasarDatabase,
+    node_db: &NodeDatabase,
     bucket: Type,
     metrics: IngestionMetrics,
 ) -> Result<(), IngestionError> {
     match bucket {
         Type::BucketEntry(entry) => match *entry {
-            BucketEntry::Liveentry(e) | BucketEntry::Initentry(e) => match e.data {
-                curr::LedgerEntryData::Account(acc) => {
-                    ingest_account(db, acc).await?;
-                    metrics.accounts.inc();
-                }
+            BucketEntry::Liveentry(e) | BucketEntry::Initentry(e) => {
+                let ledger_sequence = e.last_modified_ledger_seq;
 
-                curr::LedgerEntryData::ContractData(contract) => {
-                    ingest_contract(db, contract).await?;
-                    metrics.contracts.inc();
-                }
+                match e.data {
+                    curr::LedgerEntryData::Account(acc) => {
+                        ingest_account(db, acc).await?;
+                        metrics.accounts.inc();
+                    }
 
-                _ => {
-                    log::trace!("Unprocessed ledger entry: {:?}", e);
+                    curr::LedgerEntryData::ContractData(contract) => {
+                        ingest_contract(db, contract).await?;
+                        metrics.contracts.inc();
+                    }
+
+                    _ => {
+                        log::trace!("Unprocessed ledger entry: {:?}", e);
+                    }
                 }
-            },
+                ingest_transactions(node_db, db, ledger_sequence, &metrics)
+                    .await
+                    .unwrap();
+            }
             _ => {
                 log::trace!("Metadata {:?}", entry);
             }
         },
         _ => unreachable!("We should not get here."),
     }
+
     Ok(())
 }
+
 fn async_watcher() -> notify::Result<(RecommendedWatcher, Receiver<notify::Result<Event>>)> {
     let (mut tx, rx) = channel(1);
     let watcher = RecommendedWatcher::new(
@@ -146,10 +155,6 @@ fn read_bucket_entry(file: &Path) -> Result<Vec<Type>, curr::Error> {
         }
         Err(err) => Err(curr::Error::Io(err)),
     }
-}
-
-pub async fn sleep(_ingestion: &Ingestion) {
-    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
 }
 
 fn setup_ingestion_metrics(metrics: &Registry) -> IngestionMetrics {

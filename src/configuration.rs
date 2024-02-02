@@ -27,6 +27,7 @@ pub struct Api {
 #[derive(Debug, Deserialize, PartialEq, Eq)]
 pub struct Configuration {
     pub quasar_database_url: Option<String>,
+    pub stellar_node_database_url: Option<String>,
     pub ingestion: Ingestion,
     pub api: Api,
     pub metrics: Metrics,

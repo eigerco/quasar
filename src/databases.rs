@@ -62,3 +62,33 @@ async fn setup_connection(database_url: &String) -> DatabaseConnection {
         }
     }
 }
+#[derive(Clone)]
+pub(super) struct NodeDatabase(DatabaseConnection);
+
+impl Deref for NodeDatabase {
+    type Target = DatabaseConnection;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl NodeDatabase {
+    pub fn as_inner(&self) -> &DatabaseConnection {
+        &self.0
+    }
+}
+
+pub(super) async fn setup_stellar_node_database(configuration: &Configuration) -> NodeDatabase {
+    if let Some(node_database_url) = &configuration.stellar_node_database_url {
+        info!(
+            "Connecting the Stellar node database: {}",
+            node_database_url
+        );
+
+        NodeDatabase(setup_connection(node_database_url).await)
+    } else {
+        error!("Node database URL not set. Use config/, -s or --stellar-node-database-url");
+        std::process::exit(1);
+    }
+}
