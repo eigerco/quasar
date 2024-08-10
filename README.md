@@ -1,8 +1,17 @@
-# Quasar
+# Quasar - A Soroban indexer
 
-A Soroban indexer that offers a GraphQL API for ledgers, transactions, contracts, operations and events among others written in Rust.
+Quasar offers a GraphQL API for ledgers, transactions, contracts, operations and events among others written in Rust.
 
 Currently built to handle a subset of the Stellar dataset.
+
+## Why?
+
+Because those who will build on top of Soroban need easy access to complex data and for them to succeed they need to focus on their core value proposition not build custom data pipes every time they need processed data or event notifications.
+
+## Project Overview
+
+Quasar, aims to be a robust Soroban indexer built on top of the extended Stellar core node implementation. The tool is designed to provide high-quality Web3 infrastructure to wallets and other interfaces that connect raw data to user experiences, offering access to the Soroban ecosystem with greater efficiency and reliability.
+You can also think of it as an extension to the [Horizon API](https://developers.stellar.org/docs/data/horizon), what Horizon is to core Stellar data, Quasar is to the Soroban ecosystem. Quasar can be build standalone or be an extension to the existing Horizon API.
 
 ## Prerequisites
 
