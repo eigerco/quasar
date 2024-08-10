@@ -136,6 +136,8 @@ We plan to add access control to the GraphQL API. This will allow owners of the 
 
 Contributions are always welcome!
 
-## Feedback
+## About [Eiger](https://www.eiger.co)
 
-If you have any feedback, please reach out to us at hello@eiger.co
+We are engineers. We contribute to various ecosystems by building low level implementations and core components. We built Quasar early in Sorobans development to help newcomers to the Stellar ecosystem.
+Contact us at hello@eiger.co
+Follow us on [X/Twitter](https://x.com/eiger_co)
