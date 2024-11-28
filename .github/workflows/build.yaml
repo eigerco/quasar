@@ -9,24 +9,32 @@ on:
     branches: ["main"]
 
 jobs:
+  pull_docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: mkdir -p ~/image-cache
+
+      - id: image-cache
+        uses: actions/cache@v1
+        with:
+            path: ~/image-cache
+            # add soroban dev version
+            key: image-cache-${{ runner.os }}
+
+      - if: steps.image-cache.outputs.cache-hit != 'true'
+        run: |
+            docker pull stellar/quickstart:soroban-dev
+            docker save -o ~/image-cache/stellar.tar stellar/quickstart:soroban-dev
+            docker pull postgres
+            docker save -o ~/image-cache/postgres.tar postgres
+
   build:
+    needs: pull_docker
     timeout-minutes: 10
     permissions:
       contents: read
     runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres
-        ports:
-          - "5432:5432"
-        env:
-          POSTGRES_DB: quasar
-          POSTGRES_USER: quasar
-          POSTGRES_PASSWORD: quasar
-
-    env:
-      DATABASE_URL: "postgres://quasar:quasar@localhost:5432/quasar"
 
     steps:
       - name: Checkout code
@@ -44,6 +52,17 @@ jobs:
         with:
           command: check
           args: --all-features
+      - id: image-cache
+        uses: actions/cache@v1
+        with:
+            path: ~/image-cache
+            key: image-cache-${{ runner.os }}
+      - name: Load docker images
+        run: |
+            docker load -i ~/image-cache/stellar.tar
+            docker load -i ~/image-cache/postgres.tar
+      - name: Copy config file
+        run: cp config/config.toml.example config/config.toml
       - name: Run tests
         uses: actions-rs/cargo@v1
         with:

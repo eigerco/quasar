@@ -1,11 +1,10 @@
 use std::net::Ipv4Addr;
 
+use clap::{command, Parser};
 use config::{Config, Environment, File};
 use serde::Deserialize;
 
-use crate::Args;
-
-#[derive(Debug, Default, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Default, Deserialize, PartialEq, Eq, Copy, Clone)]
 pub struct Ingestion {
     pub polling_interval: u64,
 }
@@ -34,29 +33,43 @@ pub struct Configuration {
     pub metrics: Metrics,
 }
 
-pub(super) fn setup_configuration(args: Args) -> Configuration {
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+pub struct Args {
+    /// Database URL to use as a backend
+    #[arg(short, long)]
+    database_url: Option<String>,
+
+    /// Stellar node URL to ingest data from
+    #[arg(short, long)]
+    stellar_node_database_url: Option<String>,
+}
+
+pub fn setup_configuration(args_opt: Option<Args>) -> Configuration {
     let mut config_builder = Config::builder()
         .add_source(File::with_name("config/config"))
         .add_source(File::with_name("config/local").required(false))
         .add_source(Environment::with_prefix("app"));
 
-    if let Some(database_url) = args.database_url {
-        config_builder = config_builder
-            .set_override("database_url", database_url)
-            .expect("Failed to set database_url");
-    }
+    if let Some(args) = args_opt {
+        if let Some(database_url) = args.database_url {
+            config_builder = config_builder
+                .set_override("database_url", database_url)
+                .expect("Failed to set database_url");
+        }
 
-    if let Some(stellar_node_database_url) = args.stellar_node_database_url {
-        config_builder = config_builder
-            .set_override("stellar_node_database_url", stellar_node_database_url)
-            .expect("Failed to set stellar_node_database_url");
+        if let Some(stellar_node_database_url) = args.stellar_node_database_url {
+            config_builder = config_builder
+                .set_override("stellar_node_database_url", stellar_node_database_url)
+                .expect("Failed to set stellar_node_database_url");
+        }
     }
 
     let configuration = config_builder
         .build()
         .expect("Failed to build configuration");
-    let configuration: Configuration = configuration
-        .try_deserialize()
-        .expect("Failed to deserialize configuration");
+
     configuration
+        .try_deserialize()
+        .expect("Failed to deserialize configuration")
 }
