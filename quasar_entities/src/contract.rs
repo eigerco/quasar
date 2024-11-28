@@ -4,8 +4,7 @@ use sea_orm::{entity::prelude::*, ActiveValue::NotSet};
 use sea_orm::{Condition, Set};
 use std::collections::HashMap;
 use std::sync::Arc;
-use stellar_node_entities::contractdata;
-use stellar_xdr::curr::{Error, LedgerEntry, Limits, ReadXdr};
+use stellar_xdr::curr::{ContractDataEntry, Error, Limits, WriteXdr};
 
 use crate::{event, QuasarDataLoader};
 
@@ -52,26 +51,17 @@ impl Model {
 
 impl ActiveModelBehavior for ActiveModel {}
 
-impl TryFrom<contractdata::Model> for ActiveModel {
+impl TryFrom<ContractDataEntry> for ActiveModel {
     type Error = Error;
 
-    fn try_from(model: contractdata::Model) -> Result<Self, Self::Error> {
-        let entry = LedgerEntry::from_xdr_base64(model.ledgerentry, Limits::none())?;
-        let address = match entry.data {
-            soroban_env_host::xdr::LedgerEntryData::ContractData(c) => match c.contract {
-                soroban_env_host::xdr::ScAddress::Contract(hash) => {
-                    Ok(stellar_strkey::Contract(hash.0).to_string())
-                }
-                _ => Err(Error::Invalid),
-            },
-            _ => Err(Error::Invalid),
-        }?;
+    fn try_from(entry: ContractDataEntry) -> Result<Self, Self::Error> {
+        let address = entry.contract.to_string();
         Ok(Self {
-            r#type: Set(model.r#type.to_string()),
-            key: Set(model.key),
-            hash: Set(model.contractid.clone()),
+            r#type: Set(entry.durability.to_string()),
+            key: Set(entry.key.to_xdr_base64(Limits::none())?),
+            hash: Set(entry.ext.to_xdr_base64(Limits::none())?), //TODO: Fix this
             address: Set(address),
-            last_modified: Set(model.lastmodified),
+            last_modified: Set(0),
             created_at: NotSet,
         })
     }

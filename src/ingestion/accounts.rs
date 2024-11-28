@@ -1,41 +1,15 @@
-use crate::databases::{NodeDatabase, QuasarDatabase};
+use crate::databases::QuasarDatabase;
 
-use super::{IngestionError, IngestionMetrics};
-use log::info;
+use super::IngestionError;
+
 use migration::OnConflict;
 use quasar_entities::account;
-use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
-use stellar_node_entities::{accounts, prelude::Accounts};
-
-pub(super) async fn ingest_accounts(
-    node_database: &NodeDatabase,
-    quasar_database: &QuasarDatabase,
-    ledger_sequence: i32,
-    metrics: &IngestionMetrics,
-) -> Result<(), IngestionError> {
-    // Query all accounts with lastmodified = ledger_sequence
-    let updated_accounts = Accounts::find()
-        .filter(stellar_node_entities::accounts::Column::Lastmodified.eq(ledger_sequence))
-        .all(node_database.as_inner())
-        .await?;
-
-    let count = updated_accounts.len();
-
-    // Ingest all updated accounts
-    for account in updated_accounts {
-        ingest_account(quasar_database, account).await?;
-
-        metrics.accounts.inc();
-    }
-
-    info!("Ingested {} updated accounts", count);
-
-    Ok(())
-}
+use sea_orm::EntityTrait;
+use stellar_xdr::curr::AccountEntry;
 
 pub(super) async fn ingest_account(
     db: &QuasarDatabase,
-    account: accounts::Model,
+    account: AccountEntry,
 ) -> Result<(), IngestionError> {
     let account: account::ActiveModel = account::ActiveModel::try_from(account)?;
 

@@ -8,7 +8,6 @@ async-graphql = { workspace = true, features = ["decimal", "chrono", "dataloader
 base64 = "0.21.4"
 sea-orm = { workspace = true }
 serde_json = "1.0"
-stellar_node_entities = { path = "../stellar_node_entities" }
 stellar-xdr = { workspace = true, features = ["base64", "serde_json"] }
 stellar-strkey = { git = "https://github.com/stellar/rs-stellar-strkey" }
 soroban-env-host = "20.0.0"

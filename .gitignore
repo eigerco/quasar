@@ -31,3 +31,6 @@ devenv.local.nix
 
 config/local.*
 config/config.toml
+
+## Added by docker
+/data

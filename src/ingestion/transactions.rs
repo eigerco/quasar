@@ -1,7 +1,6 @@
 use log::info;
 use quasar_entities::transaction;
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
-use stellar_node_entities::{prelude::Txhistory, txhistory};
 use stellar_xdr::curr::{Limits, ReadXdr, TransactionEnvelope, TransactionMeta};
 
 use crate::databases::{NodeDatabase, QuasarDatabase};
@@ -10,15 +9,18 @@ use super::{
     events::ingest_events, operations::ingest_operations, IngestionError, IngestionMetrics,
 };
 
+use quasar_entities::txhistory::Entity;
+pub use quasar_entities::txhistory::Model as Transaction;
+
 pub(super) async fn ingest_transactions(
     node_database: &NodeDatabase,
     quasar_database: &QuasarDatabase,
-    ledger_sequence: i32,
+    ledger_sequence: u32,
     metrics: &IngestionMetrics,
 ) -> Result<(), IngestionError> {
     // Query all transactions with lastmodified = ledger_sequence
-    let updated_transactions = Txhistory::find()
-        .filter(stellar_node_entities::txhistory::Column::Ledgerseq.eq(ledger_sequence))
+    let updated_transactions = Entity::find()
+        .filter(quasar_entities::txhistory::Column::Ledgerseq.eq(ledger_sequence))
         .all(node_database.as_inner())
         .await?;
 
@@ -38,7 +40,7 @@ pub(super) async fn ingest_transactions(
 
 pub(super) async fn ingest_transaction(
     db: &QuasarDatabase,
-    stellar_node_transaction: txhistory::Model,
+    stellar_node_transaction: Transaction,
     metrics: &IngestionMetrics,
 ) -> Result<(), IngestionError> {
     let transaction_body =

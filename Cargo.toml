@@ -4,14 +4,14 @@ version = "0.1.0"
 edition = "2021"
 
 [workspace]
-members = [".", "quasar_entities", "quasar_migrations", "stellar_node_entities"]
+members = [".", "quasar_entities", "quasar_migrations"]
 
 [workspace.dependencies]
 sea-orm = "0.12.2"
 async-graphql = "6.0.7"
 async-graphql-axum = "6.0.7"
 thiserror = "1.0"
-stellar-xdr = "20.0.0"
+stellar-xdr = "20.0.2"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -29,7 +29,10 @@ quasar_entities = { path = "quasar_entities" }
 quasar_migrations = { path = "quasar_migrations" }
 sea-orm = { workspace = true, features = ["sqlx-postgres", "runtime-tokio-rustls"] }
 serde = { version = "1.0.188", features = ["derive"] }
-stellar_node_entities = { path = "stellar_node_entities" }
 stellar-xdr = { workspace = true, features = ["base64"] }
 thiserror.workspace = true
 tokio = { version = "1.32.0", features = ["full"] }
+notify = { version = "6.1.1", features = ["serde"] }
+futures = "0.3"
+# soroban-spec-tools = "20.0.2"
+# soroban-env-host = "20.0.1"
