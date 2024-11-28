@@ -27,9 +27,15 @@ log4rs = "1.2.0"
 prometheus = { version = "0.13.3", features = ["process"] }
 quasar_entities = { path = "quasar_entities" }
 quasar_migrations = { path = "quasar_migrations" }
-sea-orm = { workspace = true, features = ["sqlx-postgres", "runtime-tokio-rustls"] }
+sea-orm = { workspace = true, features = [
+    "sqlx-postgres",
+    "runtime-tokio-rustls",
+    "with-json",
+] }
 serde = { version = "1.0.188", features = ["derive"] }
 stellar_node_entities = { path = "stellar_node_entities" }
 stellar-xdr = { workspace = true, features = ["base64"] }
+stellar-strkey = { git = "https://github.com/stellar/rs-stellar-strkey" }
+soroban-env-host = "20.0.0"
 thiserror.workspace = true
 tokio = { version = "1.32.0", features = ["full"] }
